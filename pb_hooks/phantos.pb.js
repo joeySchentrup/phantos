@@ -37,6 +37,30 @@ onRecordUpdate((e) => {
 }, 'pantheon');
 
 // ---------------------------------------------------------------------------
+// Heroes: slug and card text like the pantheon; updates are tidied markdown
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareHero(e.app, e.record);
+  e.next();
+}, 'heroes');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareHero(e.app, e.record);
+  e.next();
+}, 'heroes');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareHeroUpdate(e.record);
+  e.next();
+}, 'hero_updates');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareHeroUpdate(e.record);
+  e.next();
+}, 'hero_updates');
+
+// ---------------------------------------------------------------------------
 // Chronicle: eras run forwards, points are a single line
 // ---------------------------------------------------------------------------
 

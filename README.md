@@ -6,9 +6,10 @@ A website supporting the Phantos universe: a searchable archive of the campaign'
 - **Search.** Full-text search across titles, voices, card text and whole documents, with highlighted snippets.
 - **Pantheon.** The powers of Phanatos at `/pantheon`, laid out like the archive: searchable, filtered by rank, one card each. A member's page ends with the cards of every lore entry that refers to them, and every lore entry ends with the members it names.
 - **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
+- **Heroes.** The party at `/heroes`, one card each, searchable. A hero's page holds who they are (player, species, class, background, alignment, faith; no stats or inventory), their backstory, and beneath it a running list of updates, newest first.
 - **Featured image.** The hero at the top of the home page. The DM uploads it, with an optional caption, from the DM desk.
-- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle, and pick the pantheon members it refers to. Add pantheon members of your own, with a portrait, from the Pantheon page. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters).
-- **Coming soon.** Atlas and Heroes are linked from the top navigation as face-down cards.
+- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle, and pick the pantheon members it refers to. Add pantheon members of your own, with a portrait, from the Pantheon page. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters). Add heroes and edit their backstories from the Heroes page; post, edit and delete a hero's updates on the hero's own page.
+- **Coming soon.** Atlas is linked from the top navigation as a face-down card.
 
 ## Stack
 
@@ -53,11 +54,19 @@ docker run -d -p 8080:8080 \
 
 - **Mount a volume at `/pb/pb_data`.** The database and every uploaded image live there.
 - **First start.** The migrations create the collections and seed the archive from the lore files baked into the image (`/pb/lore`). This runs once. Later DM edits are never overwritten.
-- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links).
+- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links). The Heroes migrations create the heroes and their updates, and seed Daymond Greystone (skipped if his URL name is taken).
 - **`DM_EMAIL` / `DM_PASSWORD`** create the first Dungeon Master if that account doesn't exist yet. You can also add DMs from the admin UI at `/_/` under **dungeon_masters**. There is no public sign-up.
 - **Pantheon.** The powers of Phanatos at `/pantheon`, laid out like the archive: searchable, filtered by rank, one card each. A member's page ends with the cards of every lore entry that refers to them, and every lore entry ends with the members it names.
 - **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
 - **Featured image.** Until the DM uploads one, the home page shows the six dragons instead.
+
+## Heroes
+
+A hero card has its own frame, orange running into green like a pendulum card. Its orb is whichever element the DM picks, and in place of stars it reads `[HERO CARD]`. The type line is species / class: `[Variant Aasimar / Bard]`.
+
+The site keeps a character's identity, not their sheet: name, player, species, class and subclass, background, alignment, faith, a portrait and a markdown backstory. Level and other stats stay on the character sheet. Updates are short markdown notes (up to 4,000 characters) with an optional heading, shown newest first beneath the backstory. Deleting a hero deletes their updates; an unpublished hero's updates are hidden along with them.
+
+One hero is seeded, Daymond Greystone, with his player's backstory ([`1790985601_seed_heroes.js`](pb_migrations/1790985601_seed_heroes.js)).
 
 ## How the lore is organised
 

@@ -1,4 +1,4 @@
-/** Top-level sections. The atlas and the heroes are still face-down. */
+/** Top-level sections. The atlas is still face-down. */
 export interface Section {
   path: string;
   label: string;
@@ -36,9 +36,8 @@ export const SECTIONS: Section[] = [
   {
     path: "/heroes",
     label: "Heroes",
-    live: false,
-    blurb: "The party, their deeds, and their electrum.",
-    teaser: ["Character sheets", "Electrum ledger", "Deeds"],
+    live: true,
+    blurb: "The party: who they are, where they came from, and what has become of them.",
   },
 ];
 

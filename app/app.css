@@ -241,6 +241,9 @@
   [data-frame="greater"]            { --frame-hi: #f39a86; --frame: #c2402f; --frame-lo: #6a120c; --name-ink: #ffffff; }
   [data-frame="other"]              { --frame-hi: #8f99a8; --frame: #5b6675; --frame-lo: #262c36; --name-ink: #ffffff; }
 
+  /* Heroes: monster orange running into spell green, like a pendulum card. */
+  [data-frame="hero"]               { --frame-hi: #ffc98f; --frame: #c77a3c; --frame-lo: #0f6b58; --name-ink: #140c05; }
+
   /* A chip of frame colour, for legends and lists. */
   .frame-swatch {
     display: inline-block;
@@ -512,6 +515,11 @@
     -webkit-line-clamp: 4;
     line-clamp: 4;
     overflow: hidden;
+  }
+  /* A stats line takes the room of a fourth line of text. */
+  .ygo-card__text:has(.ygo-card__stats) .ygo-card__desc {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
   .ygo-card__stats {
     margin-top: auto;

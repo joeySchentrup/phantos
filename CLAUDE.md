@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, and meet the powers of the world in the Pantheon. Dungeon Masters sign in to add and edit lore and pantheon members, upload card art, choose the featured image, and add eras and points to the timeline. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, meet the powers of the world in the Pantheon, and follow the party in Heroes. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, post updates to a hero's page, upload card art, choose the featured image, and add eras and points to the timeline. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -29,20 +29,21 @@ npm run build      # Production SPA to build/client
 ```
 app/
 ├── routes/            # home, lore (archive + search), loreEntry, pantheon, pantheonEntry, chronicle,
-│                      #   comingSoon, dm, dmEditor, dmPantheonEditor
+│                      #   heroes, heroEntry, comingSoon, dm, dmEditor, dmPantheonEditor, dmHeroEditor
 ├── backend/
 │   ├── api.ts         # ALL PocketBase calls — touch this for data changes
 │   └── pocketbaseClient.ts
-├── components/        # CardShell, LoreCard, PantheonCard, PantheonPicker, PantheonPlates, Timeline,
+├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, PantheonPicker, PantheonPlates, Timeline,
 │                      #   ChronicleDesk, YearField, FeaturedVision, SiteHeader, …
 ├── lib/
 │   ├── lore.ts        # categories/attributes, levels, title + snippet helpers
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
+│   ├── heroes.ts      # type line, epithet, class label
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify
 │   └── sections.ts    # top-level nav; the coming-soon sections live here
-└── types/             # lore.ts, pantheon.ts, chronicle.ts
-pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle and pantheon schema + seeds
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts
+pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon and heroes schema + seeds
 pb_hooks/              # search route, slug/word-count/summary hooks, chronicle checks, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
 ```
@@ -60,6 +61,10 @@ lore/                  # the original documents (seed source, copied into the im
 - `eras`: name, start_year, end_year, circa, description. Bands across the timeline. A start of 0 is "since the beginning"; an end of 0 is "still going".
 - `timeline_points`: text (255 characters at most), year, circa. Short notes pinned to a year; anything longer is lore.
   - Anyone can read eras and points. Only DMs can write them.
+- `heroes`: name, slug, player, species, class, subclass, background, alignment, faith, attribute, summary, backstory (markdown), portrait, published
+  - Identity only — no stats (level included) or inventory. Same rules as lore: public reads published heroes, DMs write and see drafts.
+- `hero_updates`: hero (relation, cascade delete), title (optional), body (markdown, 4,000 characters at most). The running list beneath a hero's backstory, newest first.
+  - Readable when the hero is published (or by a DM); only DMs write.
 - `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
 - `dungeon_masters`: auth collection for DMs. There is no public sign-up.
 
@@ -71,6 +76,8 @@ lore/                  # the original documents (seed source, copied into the im
   - recompute `word_count`;
   - fill a blank `summary` from the opening lines.
 - On every pantheon save: normalize line endings, make a unique slug, and fill a blank `summary`.
+- On every hero save: normalize the backstory's line endings, trim the identity fields, make a unique slug, and fill a blank `summary`.
+- On every hero update save: normalize line endings and trim the heading and body.
 - On every era save: trim the text, and refuse an era that ends before it begins.
 - On every point save: collapse the text to a single line.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
@@ -82,7 +89,7 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - All data access goes through `app/backend/api.ts`; components never call PocketBase directly.
 - Card internals are sized in `cqw` (container units). The card's outer element is the container, so never put `cqw` sizes on that element itself.
 - Category → frame colour and attribute → orb are defined once in `app/lib/lore.ts` and `app/app.css` (`[data-frame]`, `[data-attribute]`). Pantheon ranks are frames too, defined in `app/lib/pantheon.ts` and the same `[data-frame]` block.
-- `LoreCard` and `PantheonCard` both print onto `CardShell`, which owns the frame, the tilt and the foil. Change card behaviour there, not in one of the two.
+- `LoreCard`, `PantheonCard` and `HeroCard` all print onto `CardShell`, which owns the frame, the tilt and the foil. Change card behaviour there, not in one of them.
 - Years are whole numbers: negative for BC, positive for AC (the Age of Concord). There is no year zero, so 0 always means "not set". Format and convert them with `app/lib/chronicle.ts`, never by hand.
 - The timeline's row heights are constants in `app/components/Timeline.tsx` that the `.tl-*` rules in `app/app.css` match. Change them together.
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).
@@ -91,4 +98,4 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, `/chronicle` (zoom, pan, a cluster, a hover card), `/pantheon` and a member's page, and the DM editors at desktop and phone widths.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, `/chronicle` (zoom, pan, a cluster, a hover card), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM), and the DM editors at desktop and phone widths.

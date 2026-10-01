@@ -51,7 +51,7 @@ function SignIn() {
             <h1 className="font-heading text-2xl font-bold text-[#f4e6c3]">Dungeon Master</h1>
           </div>
         </div>
-        <p className="mt-4 text-[#c9b78f]">Sign in to add lore and pantheon members, edit entries and choose the featured image.</p>
+        <p className="mt-4 text-[#c9b78f]">Sign in to add lore, pantheon members and heroes, edit entries and choose the featured image.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
@@ -350,12 +350,15 @@ export default function DungeonMaster() {
           <h1 className="font-heading mt-1 text-3xl font-bold text-[#f4e6c3] sm:text-4xl">The DM's Desk</h1>
           <p className="mt-1 text-sm text-[#c9b78f]">Signed in as {dungeonMasterEmail()}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link to="/dm/lore/new" className="btn btn-gold">
             + New Lore
           </Link>
           <Link to="/dm/pantheon/new" className="btn btn-ghost" title="Add a member to the pantheon">
             + Pantheon
+          </Link>
+          <Link to="/dm/heroes/new" className="btn btn-ghost" title="Add a hero to the party">
+            + Hero
           </Link>
           <Link to="/chronicle#desk" className="btn btn-ghost" title="Add eras and points to the timeline">
             Chronicle

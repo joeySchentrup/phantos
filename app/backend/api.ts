@@ -7,6 +7,7 @@ import type {
   LoreSummary,
   SearchHit,
 } from '../types/lore';
+import type { Hero, HeroSummary, HeroUpdate, HeroUpdateInput } from '../types/hero';
 import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
 import pb from './pocketbaseClient';
 
@@ -19,6 +20,10 @@ const SUMMARY_FIELDS =
 /** Everything a pantheon card needs; the document body stays behind. */
 const PANTHEON_FIELDS =
   'id,collectionId,collectionName,slug,name,rank,attributes,domain,summary,image,published,created';
+
+/** Everything a hero card needs; the backstory stays behind. */
+const HERO_FIELDS =
+  'id,collectionId,collectionName,slug,name,player,species,class,subclass,background,alignment,faith,attribute,summary,portrait,published,created';
 
 // ---------------------------------------------------------------------------
 // Lore
@@ -251,6 +256,131 @@ export async function deletePantheon(id: string): Promise<void> {
     await pb.collection('pantheon').delete(id);
   } catch (error) {
     console.error('Error deleting the pantheon member:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Heroes
+// ---------------------------------------------------------------------------
+
+/** The hero list, or the heroes that match a search. Small enough to fetch whole. */
+export async function listHeroes(query = ''): Promise<HeroSummary[]> {
+  const clauses: string[] = [];
+  for (const term of query.trim().split(/\s+/).filter(Boolean).slice(0, 6)) {
+    clauses.push(
+      pb.filter(
+        '(name ~ {:term} || player ~ {:term} || species ~ {:term} || class ~ {:term} || subclass ~ {:term} || background ~ {:term} || faith ~ {:term} || summary ~ {:term} || backstory ~ {:term})',
+        { term }
+      )
+    );
+  }
+
+  try {
+    return await pb.collection('heroes').getFullList<HeroSummary>({
+      filter: clauses.join(' && '),
+      sort: 'name',
+      fields: HERO_FIELDS,
+      // One key per page, so a newer keystroke cancels the search before it.
+      requestKey: query.trim() ? 'hero-search' : null,
+    });
+  } catch (error: any) {
+    if (error?.isAbort) throw error;
+    console.error('Error listing heroes:', error);
+    throw error;
+  }
+}
+
+export async function getHeroBySlug(slug: string): Promise<Hero> {
+  try {
+    return await pb.collection('heroes').getFirstListItem<Hero>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the hero:', error);
+    throw error;
+  }
+}
+
+export async function getHeroById(id: string): Promise<Hero> {
+  try {
+    return await pb.collection('heroes').getOne<Hero>(id, { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the hero:', error);
+    throw error;
+  }
+}
+
+export async function createHero(data: FormData): Promise<Hero> {
+  try {
+    return await pb.collection('heroes').create<Hero>(data);
+  } catch (error) {
+    console.error('Error creating the hero:', error);
+    throw error;
+  }
+}
+
+export async function updateHero(id: string, data: FormData): Promise<Hero> {
+  try {
+    return await pb.collection('heroes').update<Hero>(id, data);
+  } catch (error) {
+    console.error('Error updating the hero:', error);
+    throw error;
+  }
+}
+
+/** Deletes the hero; their updates go with them. */
+export async function deleteHero(id: string): Promise<void> {
+  try {
+    await pb.collection('heroes').delete(id);
+  } catch (error) {
+    console.error('Error deleting the hero:', error);
+    throw error;
+  }
+}
+
+/** A hero's updates, newest first. */
+export async function listHeroUpdates(heroId: string): Promise<HeroUpdate[]> {
+  try {
+    return await pb.collection('hero_updates').getFullList<HeroUpdate>({
+      filter: pb.filter('hero = {:hero}', { hero: heroId }),
+      sort: '-created,-id',
+      requestKey: null,
+    });
+  } catch (error) {
+    console.error('Error listing hero updates:', error);
+    throw error;
+  }
+}
+
+/** How many updates each hero has, by hero id. */
+export async function countUpdatesByHero(): Promise<Record<string, number>> {
+  try {
+    const records = await pb.collection('hero_updates').getFullList<{ hero: string }>({ fields: 'hero', requestKey: null });
+    const counts: Record<string, number> = {};
+    for (const record of records) counts[record.hero] = (counts[record.hero] ?? 0) + 1;
+    return counts;
+  } catch (error) {
+    console.error('Error counting hero updates:', error);
+    throw error;
+  }
+}
+
+/** Creates the update, or edits it when `id` is given. */
+export async function saveHeroUpdate(data: HeroUpdateInput, id?: string): Promise<HeroUpdate> {
+  try {
+    return id
+      ? await pb.collection('hero_updates').update<HeroUpdate>(id, data)
+      : await pb.collection('hero_updates').create<HeroUpdate>(data);
+  } catch (error) {
+    console.error('Error saving the hero update:', error);
+    throw error;
+  }
+}
+
+export async function deleteHeroUpdate(id: string): Promise<void> {
+  try {
+    await pb.collection('hero_updates').delete(id);
+  } catch (error) {
+    console.error('Error deleting the hero update:', error);
     throw error;
   }
 }

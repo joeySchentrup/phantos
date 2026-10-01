@@ -147,6 +147,35 @@ function preparePantheon(app, record) {
 }
 
 // ---------------------------------------------------------------------------
+// Hero record upkeep
+// ---------------------------------------------------------------------------
+
+const HERO_TEXT_FIELDS = ['name', 'player', 'species', 'class', 'subclass', 'background', 'alignment', 'faith'];
+
+/** Clean line endings, trimmed identity fields, a unique slug, card text from the backstory. */
+function prepareHero(app, record) {
+  const backstory = normalizeNewlines(record.getString('backstory'));
+  record.set('backstory', backstory);
+  for (let i = 0; i < HERO_TEXT_FIELDS.length; i++) {
+    record.set(HERO_TEXT_FIELDS[i], record.getString(HERO_TEXT_FIELDS[i]).trim());
+  }
+
+  const requested = slugify(record.getString('slug'));
+  const base = requested || slugify(record.getString('name'));
+  record.set('slug', uniqueSlug(app, 'heroes', base, record.id));
+
+  if (!record.getString('summary').trim() && backstory) {
+    record.set('summary', autoSummary(backstory));
+  }
+}
+
+/** An update keeps its paragraphs (it's markdown) but loses stray whitespace. */
+function prepareHeroUpdate(record) {
+  record.set('title', record.getString('title').replace(/\s+/g, ' ').trim());
+  record.set('body', normalizeNewlines(record.getString('body')).trim());
+}
+
+// ---------------------------------------------------------------------------
 // Chronicle record upkeep
 // ---------------------------------------------------------------------------
 
@@ -331,6 +360,8 @@ module.exports = {
   autoSummary: autoSummary,
   prepareLore: prepareLore,
   preparePantheon: preparePantheon,
+  prepareHero: prepareHero,
+  prepareHeroUpdate: prepareHeroUpdate,
   prepareEra: prepareEra,
   preparePoint: preparePoint,
   search: search,
