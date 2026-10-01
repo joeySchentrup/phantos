@@ -4,9 +4,10 @@ A website supporting the Phantos universe: a searchable archive of the campaign'
 
 - **Lore archive.** Every document from [`lore/`](lore/) lives in PocketBase and is seeded on first start. Each entry is shown as a card: the frame colour is the category, the orb is the element, and the stars show its length.
 - **Search.** Full-text search across titles, voices, card text and whole documents, with highlighted snippets.
+- **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
 - **Featured image.** The hero at the top of the home page. The DM uploads it, with an optional caption, from the DM desk.
-- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text.
-- **Coming soon.** Atlas, Pantheon, Chronicle and Heroes are linked from the top navigation as face-down cards.
+- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters).
+- **Coming soon.** Atlas, Pantheon and Heroes are linked from the top navigation as face-down cards.
 
 ## Stack
 
@@ -51,7 +52,9 @@ docker run -d -p 8080:8080 \
 
 - **Mount a volume at `/pb/pb_data`.** The database and every uploaded image live there.
 - **First start.** The migrations create the collections and seed the archive from the lore files baked into the image (`/pb/lore`). This runs once. Later DM edits are never overwritten.
+- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events.
 - **`DM_EMAIL` / `DM_PASSWORD`** create the first Dungeon Master if that account doesn't exist yet. You can also add DMs from the admin UI at `/_/` under **dungeon_masters**. There is no public sign-up.
+- **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
 - **Featured image.** Until the DM uploads one, the home page shows the six dragons instead.
 
 ## How the lore is organised
@@ -79,3 +82,9 @@ Attributes follow the six Primal Dragons, plus the divine:
 | Divine | 神 | Kalistos |
 
 A card's level (1–12 stars) comes from its word count.
+
+## Dates
+
+Years follow the lore's own count: **BC** before the Treaty of Heraklion and **AC**, the Age of Concord, after it. There is no year zero. In the database a year is a whole number, negative for BC and positive for AC, with 0 meaning "undated". A date can be marked *circa*.
+
+The seeded lore was dated from what the documents say; [`pb_migrations/1790812801_date_seeded_lore.js`](pb_migrations/1790812801_date_seeded_lore.js) lists every date and the reasoning behind the uncertain ones. The eras and events seeded onto the timeline come from the two history documents ([`1790812802_seed_chronicle.js`](pb_migrations/1790812802_seed_chronicle.js)). All of it can be edited by a Dungeon Master afterwards.

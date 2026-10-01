@@ -1,4 +1,4 @@
-/** Top-level sections. Only the archive is open; the rest are face-down for now. */
+/** Top-level sections. The archive and the chronicle are open; the rest are face-down for now. */
 export interface Section {
   path: string;
   label: string;
@@ -31,9 +31,8 @@ export const SECTIONS: Section[] = [
   {
     path: "/chronicle",
     label: "Chronicle",
-    live: false,
+    live: true,
     blurb: "A timeline of the ages, from the Erosian Wars to the Tri-War.",
-    teaser: ["c. 10000 BC", "Drynell", "The Great Hurlen War", "The Tri-War", "307 AC"],
   },
   {
     path: "/heroes",

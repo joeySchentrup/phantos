@@ -4,11 +4,11 @@ export default [
   index("routes/home.tsx"),
   route("/lore", "routes/lore.tsx"),
   route("/lore/:slug", "routes/loreEntry.tsx"),
+  route("/chronicle", "routes/chronicle.tsx"),
 
   // Sections that haven't been built yet share one face-down page.
   route("/atlas", "routes/comingSoon.tsx", { id: "atlas" }),
   route("/pantheon", "routes/comingSoon.tsx", { id: "pantheon" }),
-  route("/chronicle", "routes/comingSoon.tsx", { id: "chronicle" }),
   route("/heroes", "routes/comingSoon.tsx", { id: "heroes" }),
 
   route("/dm", "routes/dm.tsx"),

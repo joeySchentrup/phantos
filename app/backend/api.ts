@@ -1,4 +1,5 @@
 import type { ListResult } from 'pocketbase';
+import type { Era, EraInput, TimelinePoint, TimelinePointInput } from '../types/chronicle';
 import type {
   FeaturedImage,
   LoreCategory,
@@ -12,7 +13,7 @@ const DM_COLLECTION = 'dungeon_masters';
 
 /** Everything a card needs. Bodies can run to 300 KB, so lists leave them out. */
 const SUMMARY_FIELDS =
-  'id,collectionId,collectionName,slug,title,category,attribute,author,summary,cover,word_count,published,created';
+  'id,collectionId,collectionName,slug,title,category,attribute,author,summary,cover,word_count,published,year,circa,created';
 
 // ---------------------------------------------------------------------------
 // Lore
@@ -129,6 +130,85 @@ export async function deleteLore(id: string): Promise<void> {
     await pb.collection('lore').delete(id);
   } catch (error) {
     console.error('Error deleting lore:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chronicle
+// ---------------------------------------------------------------------------
+
+/** Every entry with an in-universe date, oldest first. Undated lore stays off the timeline. */
+export async function listDatedLore(): Promise<LoreSummary[]> {
+  try {
+    return await pb.collection('lore').getFullList<LoreSummary>({
+      filter: 'year != 0',
+      sort: 'year,title',
+      fields: SUMMARY_FIELDS,
+      requestKey: null,
+    });
+  } catch (error) {
+    console.error('Error listing dated lore:', error);
+    throw error;
+  }
+}
+
+/** Every era, oldest first. An era with no start has always been going, so it leads. */
+export async function listEras(): Promise<Era[]> {
+  try {
+    const eras = await pb.collection('eras').getFullList<Era>({ sort: 'start_year,end_year', requestKey: null });
+    return [...eras.filter((era) => !era.start_year), ...eras.filter((era) => era.start_year)];
+  } catch (error) {
+    console.error('Error listing eras:', error);
+    throw error;
+  }
+}
+
+/** Creates the era, or updates it when `id` is given. */
+export async function saveEra(data: EraInput, id?: string): Promise<Era> {
+  try {
+    return id ? await pb.collection('eras').update<Era>(id, data) : await pb.collection('eras').create<Era>(data);
+  } catch (error) {
+    console.error('Error saving the era:', error);
+    throw error;
+  }
+}
+
+export async function deleteEra(id: string): Promise<void> {
+  try {
+    await pb.collection('eras').delete(id);
+  } catch (error) {
+    console.error('Error deleting the era:', error);
+    throw error;
+  }
+}
+
+export async function listTimelinePoints(): Promise<TimelinePoint[]> {
+  try {
+    return await pb.collection('timeline_points').getFullList<TimelinePoint>({ sort: 'year,created', requestKey: null });
+  } catch (error) {
+    console.error('Error listing timeline points:', error);
+    throw error;
+  }
+}
+
+/** Creates the point, or updates it when `id` is given. */
+export async function saveTimelinePoint(data: TimelinePointInput, id?: string): Promise<TimelinePoint> {
+  try {
+    return id
+      ? await pb.collection('timeline_points').update<TimelinePoint>(id, data)
+      : await pb.collection('timeline_points').create<TimelinePoint>(data);
+  } catch (error) {
+    console.error('Error saving the timeline point:', error);
+    throw error;
+  }
+}
+
+export async function deleteTimelinePoint(id: string): Promise<void> {
+  try {
+    await pb.collection('timeline_points').delete(id);
+  } catch (error) {
+    console.error('Error deleting the timeline point:', error);
     throw error;
   }
 }

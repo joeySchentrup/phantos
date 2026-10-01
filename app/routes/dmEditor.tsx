@@ -12,6 +12,7 @@ import {
 } from "../backend/api";
 import LoreCard from "../components/LoreCard";
 import LoreMarkdown from "../components/LoreMarkdown";
+import YearField from "../components/YearField";
 import {
   ATTRIBUTE_ORDER,
   ATTRIBUTES,
@@ -36,6 +37,8 @@ interface Draft {
   summary: string;
   content: string;
   published: boolean;
+  year: number;
+  circa: boolean;
 }
 
 const EMPTY: Draft = {
@@ -47,6 +50,8 @@ const EMPTY: Draft = {
   summary: "",
   content: "",
   published: true,
+  year: 0,
+  circa: false,
 };
 
 export default function DmEditor() {
@@ -92,6 +97,8 @@ export default function DmEditor() {
           summary: lore.summary,
           content: lore.content,
           published: lore.published,
+          year: lore.year,
+          circa: lore.circa,
         });
         setStatus("ready");
       })
@@ -146,6 +153,8 @@ export default function DmEditor() {
     data.append("summary", draft.summary.trim());
     data.append("content", draft.content);
     data.append("published", String(draft.published));
+    data.append("year", String(draft.year));
+    data.append("circa", String(draft.circa && draft.year !== 0));
     if (coverFile) data.append("cover", coverFile);
     else if (removeCover) data.append("cover", "");
 
@@ -297,6 +306,28 @@ export default function DmEditor() {
                   className="field"
                 />
               </div>
+            </div>
+
+            <div className="grid gap-x-5 gap-y-3 sm:grid-cols-2">
+              <YearField
+                id="lore-year"
+                label={<>In-universe date <span className="normal-case tracking-normal opacity-70">(optional)</span></>}
+                year={draft.year}
+                onChange={(year) => set("year", year)}
+                placeholder="e.g. 307"
+              />
+              <label className="flex cursor-pointer items-center gap-3 sm:pt-6">
+                <input
+                  type="checkbox"
+                  checked={draft.circa}
+                  onChange={(e) => set("circa", e.target.checked)}
+                  className="h-5 w-5 accent-[#f2c14e]"
+                />
+                <span className="text-[#f4e6c3]">Circa: the year is approximate</span>
+              </label>
+              <p className="text-sm text-[#c9b78f] sm:col-span-2">
+                The year puts this entry on the Chronicle. Leave it blank to keep the entry off the timeline.
+              </p>
             </div>
 
             <div>

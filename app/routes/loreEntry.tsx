@@ -4,6 +4,7 @@ import type { Route } from "./+types/loreEntry";
 import { fileUrl, getLoreBySlug } from "../backend/api";
 import LoreCard from "../components/LoreCard";
 import LoreMarkdown from "../components/LoreMarkdown";
+import { formatYear } from "../lib/chronicle";
 import {
   ATTRIBUTES,
   CATEGORIES,
@@ -135,6 +136,13 @@ export default function LoreEntry() {
                 {attribute.label} <span className="font-kanji">{attribute.glyph}</span>
               </Detail>
               {lore.author && <Detail label="Voice">{lore.author}</Detail>}
+              {lore.year !== 0 && (
+                <Detail label="Dated">
+                  <Link to={`/chronicle?at=${lore.year}`} className="underline decoration-[#f2c14e]/50 underline-offset-2 hover:text-[#fff2b0]" title="See it on the Chronicle">
+                    {formatYear(lore.year, lore.circa)}
+                  </Link>
+                </Detail>
+              )}
               {level > 0 && <Detail label="Level">{level}</Detail>}
               {lore.word_count > 0 && <Detail label="Words">{formatNumber(lore.word_count)}</Detail>}
               {lore.word_count > 0 && <Detail label="Reading">{readingMinutes(lore.word_count)} min</Detail>}

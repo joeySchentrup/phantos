@@ -127,6 +127,30 @@ function prepareLore(app, record) {
 }
 
 // ---------------------------------------------------------------------------
+// Chronicle record upkeep
+// ---------------------------------------------------------------------------
+
+/**
+ * Years are negative for BC and positive for AC; 0 means "not set", which for
+ * an era is an open end. An era with both ends set has to run forwards.
+ */
+function prepareEra(record) {
+  record.set('name', record.getString('name').trim());
+  record.set('description', record.getString('description').replace(/\s+/g, ' ').trim());
+
+  const start = record.getInt('start_year');
+  const end = record.getInt('end_year');
+  if (start && end && end <= start) {
+    throw new BadRequestError('An era has to end after it begins.');
+  }
+}
+
+/** A point is a single line: line breaks and runs of spaces collapse to one space. */
+function preparePoint(record) {
+  record.set('text', record.getString('text').replace(/\s+/g, ' ').trim());
+}
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 
@@ -238,6 +262,8 @@ function search(query, category, includeDrafts, limit) {
       cover: r.getString('cover'),
       word_count: r.getInt('word_count'),
       published: r.getBool('published'),
+      year: r.getInt('year'),
+      circa: r.getBool('circa'),
       created: r.getString('created'),
       snippet: snippetAround(plainText(scored[i].content), terms),
     });
@@ -284,6 +310,8 @@ module.exports = {
   countWords: countWords,
   autoSummary: autoSummary,
   prepareLore: prepareLore,
+  prepareEra: prepareEra,
+  preparePoint: preparePoint,
   search: search,
   ensureDungeonMaster: ensureDungeonMaster,
 };

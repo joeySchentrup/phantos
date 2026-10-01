@@ -799,6 +799,336 @@
   .prose-lore .footnote-ref a,
   .prose-lore .footnote-backref { text-decoration: none; }
 
+  /* ---------------------------------------------------------------------- */
+  /* Chronicle: the timeline                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  /* Row heights here are mirrored by the constants in components/Timeline.tsx. */
+  .tl-viewport {
+    position: relative;
+    height: clamp(25rem, 68vh, 42rem);
+    overflow: hidden;
+    overflow: clip;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(242, 193, 78, 0.28);
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(120, 60, 20, 0.22), transparent 70%),
+      linear-gradient(180deg, rgba(30, 18, 10, 0.96), rgba(12, 7, 4, 0.97));
+    box-shadow: inset 0 1px 0 rgba(255, 230, 160, 0.08), 0 12px 40px rgba(0, 0, 0, 0.45);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    /* Sideways drags and pinches are ours; up and down still scrolls the page. */
+    touch-action: pan-y;
+  }
+  .tl-viewport[data-dragging] { cursor: grabbing; }
+  .tl-viewport:focus-visible { outline-offset: 2px; }
+
+  .tl-grid {
+    position: absolute;
+    width: 1px;
+    background: rgba(242, 193, 78, 0.07);
+    pointer-events: none;
+  }
+  .tl-ruler {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-top: 1px solid rgba(242, 193, 78, 0.3);
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+  .tl-tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 9px;
+    background: rgba(242, 193, 78, 0.75);
+  }
+  .tl-tick--minor {
+    height: 5px;
+    background: rgba(242, 193, 78, 0.35);
+  }
+  .tl-tick__label {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    transform: translateX(-50%);
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: var(--ink-dim);
+  }
+
+  .tl-axis {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    margin-top: -1px;
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold-lo));
+    box-shadow: 0 0 10px rgba(242, 170, 50, 0.35);
+    pointer-events: none;
+  }
+
+  /* Eras take one of six tones in turn, the elements of the Primal Dragons. */
+  [data-tone="0"] { --era: #f1cf4a; }
+  [data-tone="1"] { --era: #b07be0; }
+  [data-tone="2"] { --era: #f0713f; }
+  [data-tone="3"] { --era: #5fb6ea; }
+  [data-tone="4"] { --era: #c9925a; }
+  [data-tone="5"] { --era: #3fc7aa; }
+
+  .tl-era {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    padding: 0 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--era) 70%, transparent);
+    border-radius: 3px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--era) 34%, transparent), color-mix(in srgb, var(--era) 16%, transparent));
+    color: color-mix(in srgb, var(--era) 55%, #fff6dc);
+    cursor: pointer;
+    transition: background 140ms ease;
+  }
+  .tl-era:hover,
+  .tl-era:focus-visible {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--era) 52%, transparent), color-mix(in srgb, var(--era) 30%, transparent));
+  }
+  .tl-era__name {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-era-edge {
+    position: absolute;
+    width: 0;
+    border-left: 1px dashed color-mix(in srgb, var(--era) 45%, transparent);
+    pointer-events: none;
+  }
+  .tl-legend-era {
+    display: inline-block;
+    width: 1.5rem;
+    height: 0.7rem;
+    border: 1px solid rgba(241, 207, 74, 0.7);
+    border-radius: 2px;
+    background: rgba(241, 207, 74, 0.25);
+  }
+
+  /* A label starts at its year and runs right; the stem ties it to the axis. */
+  .tl-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 24px;
+    z-index: 2;
+    max-width: min(15rem, 62vw);
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .tl-label__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tl-label:focus-visible { outline-offset: 1px; }
+
+  /* Lore wears its card's name bar, in the frame colour of its category. */
+  .tl-label--lore {
+    border: 1px solid;
+    border-color: rgba(255, 255, 255, 0.55) rgba(0, 0, 0, 0.5) rgba(0, 0, 0, 0.55) rgba(255, 255, 255, 0.5);
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--frame-hi), var(--frame) 60%, var(--frame-lo) 140%);
+    color: var(--name-ink);
+    font-family: "Spectral SC", "Cinzel", Georgia, serif;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  .tl-label--lore:hover,
+  .tl-label--lore:focus-visible {
+    filter: brightness(1.12);
+    box-shadow: 0 0 0 1px var(--gold), 0 4px 12px rgba(0, 0, 0, 0.6);
+  }
+  .tl-label--lore[data-draft] { opacity: 0.75; }
+  .tl-label__draft {
+    flex: none;
+    padding: 1px 4px;
+    border-radius: 2px;
+    background: rgba(125, 21, 12, 0.9);
+    color: #ffe9dc;
+    font-family: "Cinzel", Georgia, serif;
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .tl-label--point {
+    border: 1px solid rgba(242, 193, 78, 0.3);
+    border-radius: 2px;
+    background: rgba(18, 10, 5, 0.92);
+    color: #e9dbb8;
+  }
+  .tl-label--point:hover,
+  .tl-label--point:focus-visible {
+    border-color: var(--gold);
+    color: var(--gold-hi);
+  }
+
+  .tl-stem {
+    position: absolute;
+    width: 1px;
+    background: linear-gradient(180deg, var(--frame), color-mix(in srgb, var(--frame) 35%, transparent));
+    pointer-events: none;
+  }
+  .tl-stem--point { background: rgba(242, 193, 78, 0.3); }
+
+  .tl-dot {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    background: var(--frame);
+    box-shadow: 0 0 0 1px rgba(255, 240, 200, 0.5);
+    pointer-events: none;
+  }
+  .tl-diamond {
+    display: inline-block;
+    flex: none;
+    width: 8px;
+    height: 8px;
+    transform: rotate(45deg);
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    background: linear-gradient(135deg, var(--gold-hi), var(--gold-lo));
+  }
+  .tl-diamond--axis {
+    position: absolute;
+    margin: -4px 0 0 -4px;
+    pointer-events: none;
+  }
+
+  /* Lore that didn't fit gathers above the axis line, events below it. */
+  .tl-cluster {
+    position: absolute;
+    min-width: 28px;
+    height: 18px;
+    padding: 0 6px;
+    margin-left: -6px;
+    border-radius: 999px;
+    border: 1px solid #7a4a0c;
+    background: linear-gradient(180deg, #fff1a8, #f6c84d 50%, #d9921f);
+    color: #2a1404;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    z-index: 3;
+  }
+  .tl-cluster--lore { margin-top: -21px; }
+  .tl-cluster--point {
+    margin-top: 3px;
+    border-color: rgba(242, 193, 78, 0.6);
+    background: #2a1a0d;
+    color: var(--gold-hi);
+  }
+  .tl-cluster:hover,
+  .tl-cluster:focus-visible { filter: brightness(1.15); }
+
+  .tl-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--ink);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  .tl-hint[data-shown] { opacity: 1; }
+
+  .tl-zoom {
+    width: 2.1rem;
+    padding: 0.3rem 0 !important;
+    font-family: "Source Serif 4", Georgia, serif !important;
+    font-size: 1.15rem !important;
+    line-height: 1.2;
+    letter-spacing: 0 !important;
+  }
+
+  /* Popovers sit outside the timeline so its edges can't clip them. */
+  .tl-tip {
+    position: fixed;
+    z-index: 50;
+    pointer-events: none;
+    filter: drop-shadow(0 16px 30px rgba(0, 0, 0, 0.7));
+  }
+  .tl-tip__date {
+    margin-bottom: 0.3rem;
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  /* Over a card the date floats free, so it carries its own backing. */
+  .tl-tip:not(.tl-tip--note) .tl-tip__date {
+    width: fit-content;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(242, 193, 78, 0.45);
+    background: #160d07;
+  }
+  .tl-tip--note,
+  .tl-cluster-list {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(242, 193, 78, 0.45);
+    background: linear-gradient(180deg, #2f1c10, #160d07);
+    color: #e9dbb8;
+  }
+  .tl-tip--note {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+  .tl-cluster-list {
+    position: fixed;
+    z-index: 50;
+    overflow-y: auto;
+    padding: 0.35rem;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  }
+  .tl-cluster-list__row {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.3rem;
+    font-size: 0.92rem;
+  }
+  a.tl-cluster-list__row:hover,
+  button.tl-cluster-list__row:hover { background: rgba(242, 193, 78, 0.12); }
+
   /* Search hit highlight */
   mark.hit {
     background: rgba(242, 193, 78, 0.38);
@@ -840,6 +1170,8 @@
 @media (prefers-reduced-motion: reduce) {
   .ygo-card__body,
   .ygo-card__foil,
+  .tl-era,
+  .tl-hint,
   .btn {
     transition: none;
   }

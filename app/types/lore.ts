@@ -16,6 +16,9 @@ export interface LoreSummary {
   cover: string;
   word_count: number;
   published: boolean;
+  /** In-universe year: negative for BC, positive for AC, 0 for undated. */
+  year: number;
+  circa: boolean;
   created: string;
 }
 

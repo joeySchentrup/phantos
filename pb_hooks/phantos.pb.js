@@ -23,6 +23,30 @@ onRecordUpdate((e) => {
 }, 'lore');
 
 // ---------------------------------------------------------------------------
+// Chronicle: eras run forwards, points are a single line
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareEra(e.record);
+  e.next();
+}, 'eras');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareEra(e.record);
+  e.next();
+}, 'eras');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePoint(e.record);
+  e.next();
+}, 'timeline_points');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePoint(e.record);
+  e.next();
+}, 'timeline_points');
+
+// ---------------------------------------------------------------------------
 // Create the Dungeon Master from DM_EMAIL / DM_PASSWORD on first start
 // ---------------------------------------------------------------------------
 

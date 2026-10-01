@@ -354,6 +354,9 @@ export default function DungeonMaster() {
           <Link to="/dm/lore/new" className="btn btn-gold">
             + New Lore
           </Link>
+          <Link to="/chronicle#desk" className="btn btn-ghost" title="Add eras and points to the timeline">
+            Chronicle
+          </Link>
           <button type="button" onClick={signOutDungeonMaster} className="btn btn-ghost">
             Sign out
           </button>
