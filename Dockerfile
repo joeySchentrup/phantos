@@ -35,13 +35,9 @@ EXPOSE 8080
 
 # Mount a volume at /pb/pb_data — that's where the database and uploads live.
 #
-# OPENAI_API_KEY turns on featured-image generation from the DM page.
 # DM_EMAIL / DM_PASSWORD create the first Dungeon Master account if it doesn't
 # exist yet (or create one from the admin UI at /_/).
 ENV LORE_DIR=/pb/lore \
-    OPENAI_API_KEY="" \
-    OPENAI_IMAGE_MODEL="" \
-    OPENAI_IMAGE_QUALITY="" \
     DM_EMAIL="" \
     DM_PASSWORD=""
 

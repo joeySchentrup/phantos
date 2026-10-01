@@ -21,7 +21,7 @@ export LORE_DIR="$ROOT/lore"
 
 mkdir -p "$PB_DATA"
 
-# Load server-side secrets (e.g. OPENAI_API_KEY) if present. `set -a` exports
+# Load server-side settings (e.g. DM_EMAIL / DM_PASSWORD) if present. `set -a` exports
 # everything defined in the file so the PocketBase process inherits it.
 SECRETS_FILE="$ROOT/.env"
 if [ -f "$SECRETS_FILE" ]; then

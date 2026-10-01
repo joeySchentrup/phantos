@@ -10,7 +10,6 @@ export default [
   route("/pantheon", "routes/comingSoon.tsx", { id: "pantheon" }),
   route("/chronicle", "routes/comingSoon.tsx", { id: "chronicle" }),
   route("/heroes", "routes/comingSoon.tsx", { id: "heroes" }),
-  route("/sessions", "routes/comingSoon.tsx", { id: "sessions" }),
 
   route("/dm", "routes/dm.tsx"),
   route("/dm/lore/new", "routes/dmEditor.tsx", { id: "dm-lore-new" }),

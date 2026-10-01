@@ -53,8 +53,9 @@ function SixDragons() {
 }
 
 export default function FeaturedVision({ image, loading, stats, isDm }: FeaturedVisionProps) {
-  const full = image ? fileUrl(image, image.image) : "";
+  // DM uploads can be any size, so the hero only ever loads the resized copies.
   const medium = image ? fileUrl(image, image.image, "960x0") : "";
+  const large = image ? fileUrl(image, image.image, "1600x0") : "";
 
   return (
     <section aria-labelledby="vision-title" className="vision-card">
@@ -74,10 +75,10 @@ export default function FeaturedVision({ image, loading, stats, isDm }: Featured
             <div className="skeleton absolute inset-0" />
           ) : image ? (
             <img
-              src={full}
-              srcSet={`${medium} 960w, ${full} 1536w`}
+              src={large}
+              srcSet={`${medium} 960w, ${large} 1600w`}
               sizes="(max-width: 1120px) 100vw, 1100px"
-              alt="AI-rendered vision of the world of Phanatos, drawn from the lore."
+              alt={image.caption || "Featured image of the world of Phanatos."}
               fetchPriority="high"
             />
           ) : (
@@ -86,18 +87,15 @@ export default function FeaturedVision({ image, loading, stats, isDm }: Featured
         </div>
 
         <div className="vision-card__text">
-          <p className="font-bold text-[0.95rem] leading-snug">
-            [Featured Vision / {image ? "Rendered from the lore" : "Awaiting its first rendering"}]
-          </p>
+          <p className="font-bold text-[0.95rem] leading-snug">[Featured Vision / The World of Phanatos]</p>
           <p className="mt-1 text-[0.98rem] leading-relaxed">
-            Kalistos gave this world to six Primal Dragons. From light and dark, fire and ice, earth and the
-            arcane they made its peoples, and from day and night, the Twins. This vision is painted by AI from
-            the archive below.
+            {image?.caption ||
+              "Kalistos gave this world to six Primal Dragons. From light and dark, fire and ice, earth and the arcane they made its peoples, and from day and night, the Twins."}
           </p>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t-2 border-[#1d150c] pt-1">
             {isDm ? (
               <Link to="/dm#vision" className="text-sm font-semibold text-[#7d150c] underline underline-offset-2">
-                Render a new vision →
+                Change the featured image →
               </Link>
             ) : (
               <span />

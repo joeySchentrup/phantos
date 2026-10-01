@@ -1,7 +1,6 @@
 import type { ListResult } from 'pocketbase';
 import type {
   FeaturedImage,
-  FeaturedImageConfig,
   LoreCategory,
   LoreEntry,
   LoreSummary,
@@ -164,25 +163,25 @@ export async function getFeaturedImage(): Promise<FeaturedImage | null> {
   }
 }
 
-export async function getFeaturedImageConfig(): Promise<FeaturedImageConfig> {
+/** Uploads a new featured image. The newest one is the home page hero. */
+export async function uploadFeaturedImage(image: File, caption: string): Promise<FeaturedImage> {
   try {
-    return await pb.send('/api/phantos/featured-image', { method: 'GET', requestKey: null });
+    const data = new FormData();
+    data.append('image', image);
+    data.append('caption', caption.trim());
+    return await pb.collection('featured_images').create<FeaturedImage>(data);
   } catch (error) {
-    console.error('Error fetching featured image settings:', error);
+    console.error('Error uploading the featured image:', error);
     throw error;
   }
 }
 
-/** Renders a new featured image on the server. Can take a minute or two. */
-export async function generateFeaturedImage(prompt: string): Promise<FeaturedImage> {
+/** Removes a featured image; the one before it (or the six dragons) takes its place. */
+export async function deleteFeaturedImage(id: string): Promise<void> {
   try {
-    return await pb.send('/api/phantos/featured-image', {
-      method: 'POST',
-      body: { prompt },
-      requestKey: null,
-    });
+    await pb.collection('featured_images').delete(id);
   } catch (error) {
-    console.error('Error generating the featured image:', error);
+    console.error('Error removing the featured image:', error);
     throw error;
   }
 }

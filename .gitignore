@@ -5,7 +5,7 @@
 /.local-pocketbase/
 /.env.development.local
 
-# Server-side secrets (OpenAI key, DM password) — never commit
+# Server-side secrets (DM password) — never commit
 /.env
 /.env.local
 

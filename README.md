@@ -4,9 +4,9 @@ A website supporting the Phantos universe: a searchable archive of the campaign'
 
 - **Lore archive.** Every document from [`lore/`](lore/) lives in PocketBase and is seeded on first start. Each entry is shown as a card: the frame colour is the category, the orb is the element, and the stars show its length.
 - **Search.** Full-text search across titles, voices, card text and whole documents, with highlighted snippets.
-- **Featured vision.** An AI-rendered hero image painted from a prompt distilled from the lore. The DM can re-render it at any time.
-- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload illustrations and maps.
-- **Coming soon.** Atlas, Pantheon, Chronicle, Heroes and Session Log are linked from the top navigation as face-down cards.
+- **Featured image.** The hero at the top of the home page. The DM uploads it, with an optional caption, from the DM desk.
+- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text.
+- **Coming soon.** Atlas, Pantheon, Chronicle and Heroes are linked from the top navigation as face-down cards.
 
 ## Stack
 
@@ -32,7 +32,7 @@ The devcontainer runs the PocketBase script for you. The script:
 - creates a Dungeon Master (`dm@local.test` / `dungeonmaster`);
 - points Vite at the local server.
 
-Put server secrets such as `OPENAI_API_KEY` in a `.env` file (see [`.env.example`](.env.example)).
+To use a different local DM login, put `DM_EMAIL` and `DM_PASSWORD` in a `.env` file (see [`.env.example`](.env.example)).
 
 ```bash
 npm test           # unit tests (vitest)
@@ -46,17 +46,13 @@ npm run build      # production SPA in build/client
 docker run -d -p 8080:8080 \
   -v phantos_data:/pb/pb_data \
   -e DM_EMAIL=dm@example.com -e DM_PASSWORD='a long password' \
-  -e OPENAI_API_KEY=sk-... \
   ghcr.io/joeyschentrup/phantos:latest
 ```
 
 - **Mount a volume at `/pb/pb_data`.** The database and every uploaded image live there.
 - **First start.** The migrations create the collections and seed the archive from the lore files baked into the image (`/pb/lore`). This runs once. Later DM edits are never overwritten.
 - **`DM_EMAIL` / `DM_PASSWORD`** create the first Dungeon Master if that account doesn't exist yet. You can also add DMs from the admin UI at `/_/` under **dungeon_masters**. There is no public sign-up.
-- **`OPENAI_API_KEY`** turns on featured-image generation.
-  - `OPENAI_IMAGE_MODEL` defaults to `gpt-image-2.5-sunburst`.
-  - `OPENAI_IMAGE_QUALITY` defaults to `high`.
-  - Until a vision is rendered, the home page shows the six dragons instead.
+- **Featured image.** Until the DM uploads one, the home page shows the six dragons instead.
 
 ## How the lore is organised
 

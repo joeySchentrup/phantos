@@ -360,7 +360,10 @@ export default function DmEditor() {
             </div>
 
             <div>
-              <span className="field-label">Illustration or map <span className="normal-case tracking-normal opacity-70">(optional)</span></span>
+              <span className="field-label">Card art <span className="normal-case tracking-normal opacity-70">(optional)</span></span>
+              <p className="-mt-1 mb-2 text-sm text-[#c9b78f]">
+                Fills the card's picture and appears above the text, opening full size on click. Use it for illustrations or maps. Without one, the card shows its element's emblem.
+              </p>
               <div className="flex flex-wrap items-center gap-3">
                 <label className="btn btn-ghost !px-3 !py-1.5 !text-[0.7rem]">
                   {coverFile || existingCover ? "Replace image" : "Choose image"}

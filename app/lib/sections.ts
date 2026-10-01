@@ -42,13 +42,6 @@ export const SECTIONS: Section[] = [
     blurb: "The party, their deeds, and their electrum.",
     teaser: ["Character sheets", "Electrum ledger", "Deeds"],
   },
-  {
-    path: "/sessions",
-    label: "Session Log",
-    live: false,
-    blurb: "Recaps of every session at the table.",
-    teaser: ["Recaps", "Quotes", "Loot"],
-  },
 ];
 
 export function sectionFor(pathname: string): Section | undefined {

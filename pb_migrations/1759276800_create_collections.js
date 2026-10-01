@@ -7,7 +7,7 @@
  *   sign-up; DMs are created from the admin UI (/_/) or via DM_EMAIL and
  *   DM_PASSWORD (see pb_hooks/phantos.pb.js).
  * - lore: every lore document. Readable by anyone once published.
- * - featured_images: the AI-rendered hero art. The newest one is shown.
+ * - featured_images: hero images the DM uploads. The newest one is shown.
  */
 
 const IS_DM = '@request.auth.collectionName = "dungeon_masters"';
@@ -95,11 +95,10 @@ migrate(
           required: true,
           maxSelect: 1,
           maxSize: 25 * 1024 * 1024,
-          mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-          thumbs: ['960x0'],
+          mimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+          thumbs: ['960x0', '1600x0'],
         },
-        { name: 'prompt', type: 'text', max: 8000 },
-        { name: 'model', type: 'text', max: 100 },
+        { name: 'caption', type: 'text', max: 600 },
         { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
         { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
       ],

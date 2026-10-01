@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/dm";
 import {
+  deleteFeaturedImage,
   dungeonMasterEmail,
   errorMessage,
   fileUrl,
-  generateFeaturedImage,
   getFeaturedImage,
-  getFeaturedImageConfig,
   isDungeonMaster,
   listAllLoreForDm,
   onDungeonMasterChange,
   signInDungeonMaster,
   signOutDungeonMaster,
+  uploadFeaturedImage,
 } from "../backend/api";
 import AttributeOrb from "../components/AttributeOrb";
 import { CATEGORIES, formatDate } from "../lib/lore";
-import type { FeaturedImage, FeaturedImageConfig, LoreSummary } from "../types/lore";
+import type { FeaturedImage, LoreSummary } from "../types/lore";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Dungeon Master — Phantos" }, { name: "robots", content: "noindex" }];
@@ -51,7 +51,7 @@ function SignIn() {
             <h1 className="font-heading text-2xl font-bold text-[#f4e6c3]">Dungeon Master</h1>
           </div>
         </div>
-        <p className="mt-4 text-[#c9b78f]">Sign in to add lore, edit entries and render the featured vision.</p>
+        <p className="mt-4 text-[#c9b78f]">Sign in to add lore, edit entries and choose the featured image.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
@@ -97,59 +97,95 @@ function SignIn() {
   );
 }
 
-function VisionPanel() {
-  const [config, setConfig] = useState<FeaturedImageConfig | null>(null);
+function FeaturedImagePanel() {
   const [current, setCurrent] = useState<FeaturedImage | null>(null);
-  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "ok"; text: string } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const load = () =>
+    getFeaturedImage()
+      .then((image) => {
+        setCurrent(image);
+        setCaption(image?.caption ?? "");
+      })
+      .finally(() => setLoading(false));
 
   useEffect(() => {
-    Promise.all([getFeaturedImageConfig(), getFeaturedImage()])
-      .then(([cfg, image]) => {
-        setConfig(cfg);
-        setCurrent(image);
-        setPrompt(image?.prompt || cfg.defaultPrompt);
-      })
-      .catch((err) => setMessage({ tone: "error", text: errorMessage(err, "Could not load the vision settings.") }));
+    load();
   }, []);
 
-  const onGenerate = async () => {
+  const clearChoice = () => {
+    setFile(null);
+    if (fileInput.current) fileInput.current.value = "";
+  };
+
+  const onSave = async () => {
+    if (!file) return;
     setBusy(true);
     setMessage(null);
     try {
-      const image = await generateFeaturedImage(prompt);
+      const image = await uploadFeaturedImage(file, caption);
       setCurrent(image);
-      setMessage({ tone: "ok", text: "A new vision has been rendered. It's now on the home page." });
-    } catch (err: any) {
-      // The proxy in front of the server may give up before the image is done.
-      const text =
-        err?.status === 0 || err?.status === 504
-          ? "The request timed out, but the vision may still be forming. Refresh in a minute to check."
-          : errorMessage(err, "The vision could not be rendered.");
-      setMessage({ tone: "error", text });
+      clearChoice();
+      setMessage({ tone: "ok", text: "The featured image is updated on the home page." });
+    } catch (err) {
+      setMessage({ tone: "error", text: errorMessage(err, "The image could not be uploaded.") });
     } finally {
       setBusy(false);
     }
   };
 
+  const onRemove = async () => {
+    if (!current) return;
+    if (!window.confirm("Remove the current featured image? The previous one, or the six dragons, will show instead.")) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await deleteFeaturedImage(current.id);
+      await load();
+      setMessage({ tone: "ok", text: "Featured image removed." });
+    } catch (err) {
+      setMessage({ tone: "error", text: errorMessage(err, "The image could not be removed.") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const shown = preview || (current ? fileUrl(current, current.image, "960x0") : "");
+
   return (
     <section id="vision" aria-labelledby="vision-heading" className="panel scroll-mt-6 p-5 sm:p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="vision-heading" className="font-heading text-xl font-bold text-[#f4e6c3]">
-          Featured Vision
-        </h2>
-        {config && <span className="text-xs text-[#c9b78f]">Model: {config.model}</span>}
-      </div>
+      <h2 id="vision-heading" className="font-heading text-xl font-bold text-[#f4e6c3]">
+        Featured Image
+      </h2>
+      <p className="mt-1 text-sm text-[#c9b78f]">
+        The hero at the top of the home page. Wide images work best; it's shown at 3:2.
+      </p>
 
       <div className="mt-4 grid gap-5 md:grid-cols-[minmax(0,18rem)_1fr]">
         <div className="relative aspect-[3/2] overflow-hidden rounded border-4 border-[#2b1c10] bg-black/50">
-          {current ? (
-            <img src={fileUrl(current, current.image, "960x0")} alt="The current featured vision" className="h-full w-full object-cover" />
+          {loading ? (
+            <div className="skeleton absolute inset-0" />
+          ) : shown ? (
+            <img src={shown} alt={preview ? "The image you chose" : "The current featured image"} className="h-full w-full object-cover" />
           ) : (
             <p className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-[#c9b78f]">
-              No vision rendered yet. The home page shows the six dragons until there is one.
+              No featured image yet. The home page shows the six dragons until there is one.
             </p>
+          )}
+          {preview && (
+            <span className="absolute left-2 top-2 rounded-sm bg-[#7d150c]/80 px-1.5 py-px text-[0.65rem] font-bold uppercase tracking-wider text-[#ffe9dc]">
+              Preview
+            </span>
           )}
           {busy && (
             <div className="absolute inset-0 grid place-items-center bg-black/60 text-[#f2c14e]">
@@ -158,41 +194,62 @@ function VisionPanel() {
           )}
         </div>
 
-        <div>
-          <label htmlFor="vision-prompt" className="field-label">
-            Prompt
-          </label>
-          <textarea
-            id="vision-prompt"
-            rows={7}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            maxLength={8000}
-            className="field text-[0.92rem] leading-relaxed"
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={busy || !config?.configured || !prompt.trim()}
-              className="btn btn-gold"
-            >
+        <div className="space-y-4">
+          <div>
+            <span className="field-label">Image</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="btn btn-ghost !px-3 !py-1.5 !text-[0.7rem]">
+                {file ? "Choose another" : "Choose image"}
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="sr-only"
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] ?? null);
+                    setMessage(null);
+                  }}
+                />
+              </label>
+              {file && (
+                <>
+                  <span className="min-w-0 truncate text-sm text-[#c9b78f]">{file.name}</span>
+                  <button type="button" onClick={clearChoice} className="text-sm text-[#c9b78f] underline underline-offset-2 hover:text-[#f4e6c3]">
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="vision-caption" className="field-label">
+              Caption <span className="normal-case tracking-normal opacity-70">(optional — shown under the image)</span>
+            </label>
+            <textarea
+              id="vision-caption"
+              rows={3}
+              maxLength={600}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              className="field text-[0.95rem] leading-relaxed"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={onSave} disabled={busy || !file} className="btn btn-gold">
               {busy && <span className="spinner" aria-hidden="true" />}
-              {busy ? "Rendering… (up to a minute or two)" : "Render a new vision"}
+              Set as featured image
             </button>
-            {config && prompt !== config.defaultPrompt && (
-              <button type="button" onClick={() => setPrompt(config.defaultPrompt)} className="text-sm text-[#c9b78f] underline underline-offset-2 hover:text-[#f4e6c3]">
-                Reset to the default prompt
+            {current && (
+              <button type="button" onClick={onRemove} disabled={busy} className="btn btn-ghost">
+                Remove current
               </button>
             )}
           </div>
-          {config && !config.configured && (
-            <p className="mt-3 text-sm text-[#ffcfb8]">
-              Image generation is off: set <code className="rounded bg-black/40 px-1">OPENAI_API_KEY</code> on the server to enable it.
-            </p>
-          )}
+
           {message && (
-            <p role={message.tone === "error" ? "alert" : "status"} className={`mt-3 text-sm ${message.tone === "error" ? "text-[#ffb3a1]" : "text-[#a8e6c8]"}`}>
+            <p role={message.tone === "error" ? "alert" : "status"} className={`text-sm ${message.tone === "error" ? "text-[#ffb3a1]" : "text-[#a8e6c8]"}`}>
               {message.text}
             </p>
           )}
@@ -304,7 +361,7 @@ export default function DungeonMaster() {
       </div>
 
       <div className="mt-8 space-y-8">
-        <VisionPanel />
+        <FeaturedImagePanel />
         <LoreList />
       </div>
     </main>

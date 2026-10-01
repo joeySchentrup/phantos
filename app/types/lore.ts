@@ -33,13 +33,6 @@ export interface FeaturedImage {
   collectionId: string;
   collectionName?: string;
   image: string;
-  prompt: string;
-  model: string;
+  caption: string;
   created: string;
-}
-
-export interface FeaturedImageConfig {
-  configured: boolean;
-  model: string;
-  defaultPrompt: string;
 }

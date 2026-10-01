@@ -9,33 +9,6 @@
 
 const DM_COLLECTION = 'dungeon_masters';
 
-/**
- * The scene the featured image is rendered from. Distilled from the lore: the
- * six Primal Dragons given Phanatos by Kalistos, the Kobold citadel of
- * Korland, and Erosia's twilight returning over Hurly. DMs can rewrite it
- * from the DM page before generating.
- */
-const DEFAULT_PROMPT = [
-  'Epic fantasy key art in the style of a painted collectible trading card illustration.',
-  'The six Primal Dragons of the world of Phanatos circle a storm-lit sky above the continent of Hurly:',
-  'Ouro’ras, a radiant golden dragon of Light; Golestandt, a vast shadow-black dragon of Darkness;',
-  'Vlaurunga, a crimson-and-ember dragon of Fire; Yvander, a pale glacier-blue dragon of Ice;',
-  'Quintara Lotus, a shimmering violet-and-teal dragon of the Arcane; and Rokesh, a gem-scaled basalt dragon of Earth.',
-  'Far below, the crystal-veined basalt towers of Korland, citadel of the Kobold Empire, glow on a volcanic island.',
-  'On the horizon a violet rift of twilight tears open, where a pale crowned queen and an army of Twili wait in shadow.',
-  'Dramatic rim lighting, rich saturated color, deep golds against twilight purples, painterly and highly detailed,',
-  'cinematic wide composition. No text, no lettering, no logos, no card frame or borders.',
-].join(' ');
-
-function config() {
-  return {
-    apiKey: $os.getenv('OPENAI_API_KEY'),
-    baseUrl: ($os.getenv('OPENAI_BASE_URL') || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-    model: $os.getenv('OPENAI_IMAGE_MODEL') || 'gpt-image-2.5-sunburst',
-    quality: $os.getenv('OPENAI_IMAGE_QUALITY') || 'high',
-  };
-}
-
 function isDungeonMaster(auth) {
   return !!auth && auth.collection().name === DM_COLLECTION;
 }
@@ -273,86 +246,6 @@ function search(query, category, includeDrafts, limit) {
 }
 
 // ---------------------------------------------------------------------------
-// Featured image
-// ---------------------------------------------------------------------------
-
-const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-/** The JS VM has no atob, and fileFromBytes wants plain byte values. */
-function base64ToBytes(b64) {
-  const lookup = {};
-  for (let i = 0; i < B64_ALPHABET.length; i++) lookup[B64_ALPHABET.charAt(i)] = i;
-  lookup['-'] = 62;
-  lookup['_'] = 63;
-
-  const clean = String(b64).replace(/[^A-Za-z0-9+/_-]/g, '');
-  const bytes = [];
-  let buffer = 0;
-  let bits = 0;
-  for (let i = 0; i < clean.length; i++) {
-    buffer = (buffer << 6) | lookup[clean.charAt(i)];
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buffer >> bits) & 0xff);
-    }
-  }
-  return bytes;
-}
-
-function apiError(res) {
-  try {
-    if (res.json && res.json.error && res.json.error.message) return res.json.error.message;
-  } catch (err) {
-    // fall through
-  }
-  return 'HTTP ' + res.statusCode;
-}
-
-/** Renders a new featured image with OpenAI and stores it. Returns the record. */
-function generateFeaturedImage(prompt) {
-  const cfg = config();
-  if (!cfg.apiKey) {
-    throw new Error('Image generation is not configured. Set OPENAI_API_KEY on the server.');
-  }
-
-  const res = $http.send({
-    method: 'POST',
-    url: cfg.baseUrl + '/images/generations',
-    headers: {
-      Authorization: 'Bearer ' + cfg.apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      prompt: prompt,
-      size: '1536x1024',
-      quality: cfg.quality,
-      output_format: 'webp',
-      output_compression: 90,
-      n: 1,
-    }),
-    timeout: 300,
-  });
-
-  if (res.statusCode !== 200) {
-    throw new Error('The image service refused the request: ' + apiError(res));
-  }
-
-  const data = res.json && res.json.data && res.json.data[0];
-  if (!data || !data.b64_json) {
-    throw new Error('The image service returned no image.');
-  }
-
-  const record = new Record($app.findCollectionByNameOrId('featured_images'));
-  record.set('image', $filesystem.fileFromBytes(base64ToBytes(data.b64_json), 'phantos-featured.webp'));
-  record.set('prompt', prompt);
-  record.set('model', cfg.model);
-  $app.save(record);
-  return record;
-}
-
-// ---------------------------------------------------------------------------
 // Dungeon Master bootstrap
 // ---------------------------------------------------------------------------
 
@@ -385,8 +278,6 @@ function ensureDungeonMaster(app) {
 }
 
 module.exports = {
-  DEFAULT_PROMPT: DEFAULT_PROMPT,
-  config: config,
   isDungeonMaster: isDungeonMaster,
   slugify: slugify,
   plainText: plainText,
@@ -394,7 +285,5 @@ module.exports = {
   autoSummary: autoSummary,
   prepareLore: prepareLore,
   search: search,
-  base64ToBytes: base64ToBytes,
-  generateFeaturedImage: generateFeaturedImage,
   ensureDungeonMaster: ensureDungeonMaster,
 };

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore. Dungeon Masters sign in to add and edit it and to render the AI featured image. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore. Dungeon Masters sign in to add and edit it, upload card art, and choose the featured image. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -39,7 +39,7 @@ app/
 │   └── sections.ts    # top-level nav; the coming-soon sections live here
 └── types/lore.ts
 pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env
-pb_hooks/              # search route, featured-image route, slug/word-count/summary hooks
+pb_hooks/              # search route, slug/word-count/summary hooks, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
 ```
 
@@ -48,7 +48,7 @@ lore/                  # the original documents (seed source, copied into the im
 - `lore`: title, slug, category, attribute, author, summary, content (markdown), cover, word_count, published
   - Public can read published entries.
   - Only `dungeon_masters` can write, and they also see drafts.
-- `featured_images`: image, prompt, model. The newest one is the home page hero.
+- `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
 - `dungeon_masters`: auth collection for DMs. There is no public sign-up.
 
 ## Server-side Hooks (`pb_hooks/`)
@@ -59,7 +59,6 @@ lore/                  # the original documents (seed source, copied into the im
   - recompute `word_count`;
   - fill a blank `summary` from the opening lines.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
-- `GET|POST /api/phantos/featured-image`: DM-only. Renders a vision with OpenAI (`OPENAI_API_KEY`).
 
 PocketBase runs each handler in an isolated runtime: handlers must `require(`${__hooks}/phantos/lib.js`)` rather than close over outer variables. On a brand-new database `onBootstrap` runs before migrations, which is why the first DM is created by a migration.
 
