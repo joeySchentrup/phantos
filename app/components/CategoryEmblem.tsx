@@ -1,7 +1,7 @@
 import type { LoreCategory } from "~/types/lore";
 
 /** Line-art emblems drawn in the middle of a card that has no illustration. */
-const PATHS: Record<LoreCategory, React.ReactNode> = {
+export const PATHS: Record<LoreCategory, React.ReactNode> = {
   // An open book.
   tale: (
     <>
@@ -59,7 +59,8 @@ const PATHS: Record<LoreCategory, React.ReactNode> = {
   ),
 };
 
-export default function CategoryEmblem({ category, className = "" }: { category: LoreCategory; className?: string }) {
+/** The frame every emblem is drawn in: a 64-unit square of line art. */
+export function Emblem({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
     <svg
       viewBox="0 0 64 64"
@@ -71,7 +72,11 @@ export default function CategoryEmblem({ category, className = "" }: { category:
       className={className}
       aria-hidden="true"
     >
-      {PATHS[category] ?? PATHS.tale}
+      {children}
     </svg>
   );
+}
+
+export default function CategoryEmblem({ category, className = "" }: { category: LoreCategory; className?: string }) {
+  return <Emblem className={className}>{PATHS[category] ?? PATHS.tale}</Emblem>;
 }

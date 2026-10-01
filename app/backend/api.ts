@@ -7,6 +7,7 @@ import type {
   LoreSummary,
   SearchHit,
 } from '../types/lore';
+import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
 import pb from './pocketbaseClient';
 
 const DM_COLLECTION = 'dungeon_masters';
@@ -14,6 +15,10 @@ const DM_COLLECTION = 'dungeon_masters';
 /** Everything a card needs. Bodies can run to 300 KB, so lists leave them out. */
 const SUMMARY_FIELDS =
   'id,collectionId,collectionName,slug,title,category,attribute,author,summary,cover,word_count,published,year,circa,created';
+
+/** Everything a pantheon card needs; the document body stays behind. */
+const PANTHEON_FIELDS =
+  'id,collectionId,collectionName,slug,name,rank,attributes,domain,summary,image,published,created';
 
 // ---------------------------------------------------------------------------
 // Lore
@@ -55,11 +60,14 @@ export async function getArchiveStats(): Promise<{ entries: number; words: numbe
   }
 }
 
+/** One entry with its document, and the cards of the pantheon members it refers to. */
 export async function getLoreBySlug(slug: string): Promise<LoreEntry> {
   try {
-    return await pb
-      .collection('lore')
-      .getFirstListItem<LoreEntry>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+    return await pb.collection('lore').getFirstListItem<LoreEntry>(pb.filter('slug = {:slug}', { slug }), {
+      expand: 'pantheon',
+      fields: '*,' + PANTHEON_FIELDS.split(',').map((field) => `expand.pantheon.${field}`).join(','),
+      requestKey: null,
+    });
   } catch (error) {
     console.error('Error fetching lore:', error);
     throw error;
@@ -130,6 +138,119 @@ export async function deleteLore(id: string): Promise<void> {
     await pb.collection('lore').delete(id);
   } catch (error) {
     console.error('Error deleting lore:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pantheon
+// ---------------------------------------------------------------------------
+
+/**
+ * The pantheon, or the part of it that matches a search and a rank. It is
+ * small enough to fetch whole, so the caller sorts it.
+ */
+export async function listPantheon(query = '', rank: PantheonRank | '' = ''): Promise<PantheonSummary[]> {
+  const clauses: string[] = [];
+  for (const term of query.trim().split(/\s+/).filter(Boolean).slice(0, 6)) {
+    clauses.push(
+      pb.filter('(name ~ {:term} || domain ~ {:term} || attributes ~ {:term} || summary ~ {:term} || content ~ {:term})', { term })
+    );
+  }
+  if (rank) clauses.push(pb.filter('rank = {:rank}', { rank }));
+
+  try {
+    return await pb.collection('pantheon').getFullList<PantheonSummary>({
+      filter: clauses.join(' && '),
+      sort: 'name',
+      fields: PANTHEON_FIELDS,
+      // One key per page, so a newer keystroke cancels the search before it.
+      requestKey: query.trim() ? 'pantheon-search' : null,
+    });
+  } catch (error: any) {
+    if (error?.isAbort) throw error;
+    console.error('Error listing the pantheon:', error);
+    throw error;
+  }
+}
+
+export async function getPantheonBySlug(slug: string): Promise<PantheonMember> {
+  try {
+    return await pb
+      .collection('pantheon')
+      .getFirstListItem<PantheonMember>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the pantheon member:', error);
+    throw error;
+  }
+}
+
+export async function getPantheonById(id: string): Promise<PantheonMember> {
+  try {
+    return await pb.collection('pantheon').getOne<PantheonMember>(id, { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the pantheon member:', error);
+    throw error;
+  }
+}
+
+/** The lore that refers to a pantheon member, as cards. */
+export async function listLoreForPantheon(memberId: string): Promise<LoreSummary[]> {
+  try {
+    return await pb.collection('lore').getFullList<LoreSummary>({
+      filter: pb.filter('pantheon ~ {:id}', { id: memberId }),
+      sort: 'title',
+      fields: SUMMARY_FIELDS,
+      requestKey: null,
+    });
+  } catch (error) {
+    console.error('Error listing lore for the pantheon member:', error);
+    throw error;
+  }
+}
+
+/** How many lore entries refer to each pantheon member, by member id. */
+export async function countLoreByPantheon(): Promise<Record<string, number>> {
+  try {
+    const records = await pb.collection('lore').getFullList<{ pantheon: string[] }>({
+      filter: 'pantheon:length > 0',
+      fields: 'pantheon',
+      requestKey: null,
+    });
+    const counts: Record<string, number> = {};
+    for (const record of records) {
+      for (const id of record.pantheon ?? []) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    return counts;
+  } catch (error) {
+    console.error('Error counting lore by pantheon member:', error);
+    throw error;
+  }
+}
+
+export async function createPantheon(data: FormData): Promise<PantheonMember> {
+  try {
+    return await pb.collection('pantheon').create<PantheonMember>(data);
+  } catch (error) {
+    console.error('Error creating the pantheon member:', error);
+    throw error;
+  }
+}
+
+export async function updatePantheon(id: string, data: FormData): Promise<PantheonMember> {
+  try {
+    return await pb.collection('pantheon').update<PantheonMember>(id, data);
+  } catch (error) {
+    console.error('Error updating the pantheon member:', error);
+    throw error;
+  }
+}
+
+export async function deletePantheon(id: string): Promise<void> {
+  try {
+    await pb.collection('pantheon').delete(id);
+  } catch (error) {
+    console.error('Error deleting the pantheon member:', error);
     throw error;
   }
 }

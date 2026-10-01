@@ -8,10 +8,12 @@ import {
   fileUrl,
   getLoreById,
   isDungeonMaster,
+  listPantheon,
   updateLore,
 } from "../backend/api";
 import LoreCard from "../components/LoreCard";
 import LoreMarkdown from "../components/LoreMarkdown";
+import PantheonPicker from "../components/PantheonPicker";
 import YearField from "../components/YearField";
 import {
   ATTRIBUTE_ORDER,
@@ -23,6 +25,7 @@ import {
   titleFromFilename,
 } from "../lib/lore";
 import type { LoreAttribute, LoreCategory, LoreEntry } from "../types/lore";
+import type { PantheonSummary } from "../types/pantheon";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Edit Lore — Phantos" }, { name: "robots", content: "noindex" }];
@@ -39,6 +42,8 @@ interface Draft {
   published: boolean;
   year: number;
   circa: boolean;
+  /** Ids of the pantheon members this entry refers to. */
+  pantheon: string[];
 }
 
 const EMPTY: Draft = {
@@ -52,6 +57,7 @@ const EMPTY: Draft = {
   published: true,
   year: 0,
   circa: false,
+  pantheon: [],
 };
 
 export default function DmEditor() {
@@ -68,6 +74,7 @@ export default function DmEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [pantheon, setPantheon] = useState<PantheonSummary[]>([]);
   const importRef = useRef<HTMLInputElement>(null);
 
   // Only DMs belong here.
@@ -99,6 +106,7 @@ export default function DmEditor() {
           published: lore.published,
           year: lore.year,
           circa: lore.circa,
+          pantheon: lore.pantheon ?? [],
         });
         setStatus("ready");
       })
@@ -107,6 +115,12 @@ export default function DmEditor() {
       cancelled = true;
     };
   }, [id, isNew]);
+
+  useEffect(() => {
+    listPantheon()
+      .then(setPantheon)
+      .catch(() => setPantheon([]));
+  }, []);
 
   // Warn before leaving with unsaved changes.
   useEffect(() => {
@@ -155,6 +169,9 @@ export default function DmEditor() {
     data.append("published", String(draft.published));
     data.append("year", String(draft.year));
     data.append("circa", String(draft.circa && draft.year !== 0));
+    // An empty value clears the links; otherwise one value for each member.
+    if (!draft.pantheon.length) data.append("pantheon", "");
+    for (const memberId of draft.pantheon) data.append("pantheon", memberId);
     if (coverFile) data.append("cover", coverFile);
     else if (removeCover) data.append("cover", "");
 
@@ -424,6 +441,15 @@ export default function DmEditor() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div>
+              <span className="field-label">Pantheon <span className="normal-case tracking-normal opacity-70">(optional)</span></span>
+              <p className="-mt-1 mb-2 text-sm text-[#c9b78f]">
+                The members this entry refers to. They are listed under the document, and the entry appears on each
+                member's page.
+              </p>
+              <PantheonPicker members={pantheon} selected={draft.pantheon} onChange={(ids) => set("pantheon", ids)} />
             </div>
 
             <label className="flex cursor-pointer items-center gap-3">

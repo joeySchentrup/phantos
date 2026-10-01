@@ -1,4 +1,4 @@
-/** Top-level sections. The archive and the chronicle are open; the rest are face-down for now. */
+/** Top-level sections. The atlas and the heroes are still face-down. */
 export interface Section {
   path: string;
   label: string;
@@ -24,9 +24,8 @@ export const SECTIONS: Section[] = [
   {
     path: "/pantheon",
     label: "Pantheon",
-    live: false,
+    live: true,
     blurb: "The Six Primal Dragons, the fifteen Greater Dragons, and the Twins.",
-    teaser: ["Ouro’ras", "Golestandt", "Vlaurunga", "Yvander", "Quintara Lotus", "Rokesh"],
   },
   {
     path: "/chronicle",

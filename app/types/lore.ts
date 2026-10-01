@@ -1,3 +1,5 @@
+import type { PantheonSummary } from "./pantheon";
+
 export type LoreCategory = "tale" | "chronicle" | "myth" | "dispatch" | "codex" | "dragon" | "map";
 
 export type LoreAttribute = "light" | "dark" | "fire" | "ice" | "earth" | "arcane" | "divine";
@@ -25,6 +27,10 @@ export interface LoreSummary {
 export interface LoreEntry extends LoreSummary {
   content: string;
   updated: string;
+  /** Ids of the pantheon members this entry refers to. */
+  pantheon: string[];
+  /** Their cards, when the entry was fetched with them. */
+  expand?: { pantheon?: PantheonSummary[] };
 }
 
 export interface SearchHit extends LoreSummary {

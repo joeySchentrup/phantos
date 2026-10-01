@@ -234,6 +234,13 @@
   [data-frame="map"]                { --frame-hi: #4a4a56; --frame: #26262e; --frame-lo: #0b0b0f; --name-ink: #ffe9a8; }
   [data-frame="vision"]             { --frame-hi: #ffe7a0; --frame: #d9a43a; --frame-lo: #7a4710; --name-ink: #1b1004; }
 
+  /* Pantheon ranks. The Twins' frame runs from day into night. */
+  [data-frame="creator"]            { --frame-hi: #fff3bf; --frame: #e3ae3f; --frame-lo: #7a4710; --name-ink: #1b1004; }
+  [data-frame="primal"]             { --frame-hi: #ffffff; --frame: #d5dae2; --frame-lo: #7f8896; --name-ink: #14161c; }
+  [data-frame="twin"]               { --frame-hi: #ffd978; --frame: #7a69b4; --frame-lo: #17123a; --name-ink: #1a1206; }
+  [data-frame="greater"]            { --frame-hi: #f39a86; --frame: #c2402f; --frame-lo: #6a120c; --name-ink: #ffffff; }
+  [data-frame="other"]              { --frame-hi: #8f99a8; --frame: #5b6675; --frame-lo: #262c36; --name-ink: #ffffff; }
+
   /* A chip of frame colour, for legends and lists. */
   .frame-swatch {
     display: inline-block;
@@ -314,7 +321,9 @@
     text-shadow: 0 0.2cqw 0 rgba(255, 255, 255, 0.18);
   }
   .ygo-card[data-frame="myth"] .ygo-card__title,
-  .ygo-card[data-frame="dispatch"] .ygo-card__title {
+  .ygo-card[data-frame="dispatch"] .ygo-card__title,
+  .ygo-card[data-frame="greater"] .ygo-card__title,
+  .ygo-card[data-frame="other"] .ygo-card__title {
     text-shadow: 0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.55);
   }
   .ygo-card[data-frame="map"] .ygo-card__title {
@@ -437,6 +446,12 @@
   .gen-art[data-attribute="earth"]  { --a: #f5dfb3; --b: #a06a33; --c: #2c190a; }
   .gen-art[data-attribute="arcane"] { --a: #e2fff6; --b: #33b89d; --c: #2a1150; }
   .gen-art[data-attribute="divine"] { --a: #fffbe8; --b: #f2b443; --c: #6b2a06; }
+
+  /* A second element laid over the first, fading in across the diagonal. */
+  .gen-art--half {
+    -webkit-mask-image: linear-gradient(115deg, transparent 44%, #000 56%);
+    mask-image: linear-gradient(115deg, transparent 44%, #000 56%);
+  }
 
   .gen-art__ghost {
     position: absolute;

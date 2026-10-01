@@ -23,6 +23,20 @@ onRecordUpdate((e) => {
 }, 'lore');
 
 // ---------------------------------------------------------------------------
+// Pantheon: the same slug and card-text upkeep as lore
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePantheon(e.app, e.record);
+  e.next();
+}, 'pantheon');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePantheon(e.app, e.record);
+  e.next();
+}, 'pantheon');
+
+// ---------------------------------------------------------------------------
 // Chronicle: eras run forwards, points are a single line
 // ---------------------------------------------------------------------------
 

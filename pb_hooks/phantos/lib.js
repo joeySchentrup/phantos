@@ -43,12 +43,12 @@ function slugify(text) {
   return lastDash > 40 ? cut.slice(0, lastDash) : cut;
 }
 
-/** Picks `base`, or `base-2`, `base-3`… — whichever no other lore record uses. */
-function uniqueSlug(app, base, excludeId) {
-  const root = base || 'lore';
+/** Picks `base`, or `base-2`, `base-3`… — whichever no other record in the collection uses. */
+function uniqueSlug(app, collection, base, excludeId) {
+  const root = base || collection;
   for (let n = 1; n < 500; n++) {
     const candidate = n === 1 ? root : root + '-' + n;
-    const clash = findOne(app, 'lore', 'slug = {:slug} && id != {:id}', { slug: candidate, id: excludeId || '' });
+    const clash = findOne(app, collection, 'slug = {:slug} && id != {:id}', { slug: candidate, id: excludeId || '' });
     if (!clash) return candidate;
   }
   return root + '-' + $security.randomStringWithAlphabet(6, 'abcdefghijklmnopqrstuvwxyz0123456789');
@@ -117,9 +117,29 @@ function prepareLore(app, record) {
 
   const requested = slugify(record.getString('slug'));
   const base = requested || slugify(record.getString('title'));
-  record.set('slug', uniqueSlug(app, base, record.id));
+  record.set('slug', uniqueSlug(app, 'lore', base, record.id));
 
   record.set('word_count', countWords(content));
+
+  if (!record.getString('summary').trim() && content) {
+    record.set('summary', autoSummary(content));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pantheon record upkeep
+// ---------------------------------------------------------------------------
+
+/** The same care a lore record gets: clean line endings, a unique slug, card text. */
+function preparePantheon(app, record) {
+  const content = normalizeNewlines(record.getString('content'));
+  record.set('content', content);
+  record.set('name', record.getString('name').trim());
+  record.set('domain', record.getString('domain').trim());
+
+  const requested = slugify(record.getString('slug'));
+  const base = requested || slugify(record.getString('name'));
+  record.set('slug', uniqueSlug(app, 'pantheon', base, record.id));
 
   if (!record.getString('summary').trim() && content) {
     record.set('summary', autoSummary(content));
@@ -310,6 +330,7 @@ module.exports = {
   countWords: countWords,
   autoSummary: autoSummary,
   prepareLore: prepareLore,
+  preparePantheon: preparePantheon,
   prepareEra: prepareEra,
   preparePoint: preparePoint,
   search: search,

@@ -4,6 +4,7 @@ import type { Route } from "./+types/loreEntry";
 import { fileUrl, getLoreBySlug } from "../backend/api";
 import LoreCard from "../components/LoreCard";
 import LoreMarkdown from "../components/LoreMarkdown";
+import PantheonPlates from "../components/PantheonPlates";
 import { formatYear } from "../lib/chronicle";
 import {
   ATTRIBUTES,
@@ -92,6 +93,7 @@ export default function LoreEntry() {
   const isMap = !!lore.cover && !lore.content.trim();
   const coverLarge = lore.cover ? fileUrl(lore, lore.cover, "1600x0") : "";
   const coverFull = lore.cover ? fileUrl(lore, lore.cover) : "";
+  const pantheon = lore.expand?.pantheon ?? [];
 
   return (
     <main className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
@@ -188,6 +190,18 @@ export default function LoreEntry() {
             !lore.cover && <p className="text-center italic text-[#5b4527]">This card has no text yet.</p>
           )}
         </div>
+
+        {pantheon.length > 0 && (
+          <section aria-labelledby="pantheon-heading" className="min-w-0 lg:col-start-2">
+            <p className="eyebrow">The Pantheon</p>
+            <h2 id="pantheon-heading" className="font-heading mt-1 text-2xl font-bold text-[#f4e6c3]">
+              Named in this entry
+            </h2>
+            <div className="mt-4">
+              <PantheonPlates members={pantheon} />
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
