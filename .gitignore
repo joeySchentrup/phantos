@@ -1,0 +1,16 @@
+.DS_Store
+/node_modules/
+
+# Local PocketBase instance (devcontainer)
+/.local-pocketbase/
+/.env.development.local
+
+# Server-side secrets (OpenAI key, DM password) — never commit
+/.env
+/.env.local
+
+# React Router
+/.react-router/
+/build/
+
+/test-results/

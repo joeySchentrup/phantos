@@ -1,0 +1,9 @@
+.git
+.react-router
+.local-pocketbase
+.env
+.env.*
+build
+node_modules
+test-results
+README.md

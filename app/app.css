@@ -1,0 +1,853 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Phantos — duel-monster card styling.
+ *
+ * Lore categories are card frames (Normal, Effect, Spell, Trap, Ritual,
+ * Fusion, Xyz), attributes are the elemental orbs, and a document's length is
+ * its level. Card internals are sized in container units (cqw) so one card
+ * component reads correctly at any width.
+ */
+
+@layer base {
+  :root {
+    --ink: #f4e6c3;
+    --ink-dim: #c9b78f;
+    --night: #0e0805;
+    --umber: #22140b;
+    --umber-2: #2f1c10;
+    --gold-hi: #fff2b0;
+    --gold: #f2c14e;
+    --gold-lo: #b9781a;
+    --ember: #d9541e;
+    --blood: #7d150c;
+    --parchment: #efe2c0;
+    --parchment-2: #e2cf9f;
+    --parchment-ink: #1d150c;
+    color-scheme: dark;
+  }
+
+  html {
+    background-color: var(--night);
+  }
+
+  body {
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    background-color: var(--night);
+    background-image:
+      radial-gradient(1100px 520px at 50% -8%, rgba(217, 110, 32, 0.30), transparent 62%),
+      radial-gradient(900px 700px at 110% 30%, rgba(98, 38, 128, 0.16), transparent 60%),
+      radial-gradient(900px 700px at -10% 70%, rgba(20, 112, 96, 0.10), transparent 60%),
+      repeating-conic-gradient(from 0deg at 50% -20%, rgba(150, 80, 30, 0.06) 0deg 5deg, transparent 5deg 10deg);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: rgba(242, 193, 78, 0.45);
+    color: #1b1006;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* ---------------------------------------------------------------------- */
+  /* Type                                                                    */
+  /* ---------------------------------------------------------------------- */
+
+  .font-display { font-family: "Cinzel Decorative", "Cinzel", Georgia, serif; }
+  .font-heading { font-family: "Cinzel", Georgia, serif; }
+  .font-card { font-family: "Spectral SC", "Cinzel", Georgia, serif; }
+  .font-kanji { font-family: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif; }
+
+  .gold-text {
+    background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 45%, var(--gold-lo) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* The wordmark: gilded letters with a lacquer-red keyline. */
+  .wordmark {
+    font-family: "Cinzel Decorative", "Cinzel", Georgia, serif;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    background: linear-gradient(180deg, #fffbe0 0%, #ffd75a 38%, #f0a321 62%, #a45b0e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-stroke: 1px #6b1206;
+    filter: drop-shadow(0 2px 0 #2a0a03) drop-shadow(0 0 14px rgba(242, 160, 40, 0.35));
+  }
+
+  .eyebrow {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.72rem;
+    color: var(--gold);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Buttons and fields                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.45rem;
+    padding: 0.6rem 1.15rem;
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .btn-gold {
+    color: #2a1404;
+    background: linear-gradient(180deg, #fff1a8 0%, #f6c84d 45%, #d9921f 100%);
+    border: 1px solid #7a4a0c;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -2px 0 rgba(120, 60, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.45);
+  }
+  .btn-gold:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -2px 0 rgba(120, 60, 0, 0.35), 0 6px 18px rgba(242, 170, 50, 0.35);
+  }
+  .btn-ghost {
+    color: var(--gold);
+    background: rgba(20, 10, 4, 0.55);
+    border: 1px solid rgba(242, 193, 78, 0.45);
+  }
+  .btn-ghost:not(:disabled):hover {
+    color: var(--gold-hi);
+    border-color: var(--gold);
+    background: rgba(60, 30, 10, 0.6);
+  }
+  .btn-danger {
+    color: #ffd9cf;
+    background: linear-gradient(180deg, #a3301c, #6e160b);
+    border: 1px solid #3d0904;
+  }
+  .btn-danger:not(:disabled):hover {
+    background: linear-gradient(180deg, #bd3a22, #7d1a0d);
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .field {
+    width: 100%;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(242, 193, 78, 0.3);
+    background: rgba(8, 4, 2, 0.65);
+    color: var(--ink);
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .field::placeholder { color: rgba(201, 183, 143, 0.55); }
+  .field:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(242, 193, 78, 0.18);
+  }
+  select.field option { background: #1a0f08; }
+
+  /* A plate in the style of a card's name bar, for search and section titles. */
+  .name-plate {
+    position: relative;
+    border-radius: 0.5rem;
+    border: 2px solid;
+    border-color: #4a2e12 #e8cf8a #f1dc9e #4a2e12;
+    background: linear-gradient(180deg, rgba(255, 238, 190, 0.16), rgba(255, 238, 190, 0.04) 45%, rgba(0, 0, 0, 0.12)),
+      linear-gradient(160deg, #3a2412, #1d1009);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Panel with a gilt hairline, for DM forms and sidebars. */
+  .panel {
+    border-radius: 0.75rem;
+    border: 1px solid rgba(242, 193, 78, 0.28);
+    background: linear-gradient(180deg, rgba(47, 28, 16, 0.92), rgba(22, 13, 7, 0.94));
+    box-shadow: inset 0 1px 0 rgba(255, 230, 160, 0.08), 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* The card                                                                */
+  /* ---------------------------------------------------------------------- */
+
+  /* The outer element is the size container; everything inside is in cqw. */
+  .ygo-card {
+    --frame-hi: #f0cd8a;
+    --frame: #d6a95c;
+    --frame-lo: #8f6127;
+    --name-ink: #120c06;
+    container-type: inline-size;
+    position: relative;
+    display: block;
+    aspect-ratio: 59 / 86;
+    width: 100%;
+    color: var(--parchment-ink);
+    isolation: isolate;
+  }
+  .ygo-card__body {
+    position: relative;
+    height: 100%;
+    border-radius: 3.4cqw;
+    padding: 1.6cqw;
+    background: linear-gradient(145deg, #2b1d12, #0c0704);
+    box-shadow: 0 1px 0 rgba(255, 230, 170, 0.1) inset, 0 14px 28px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.6);
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--lift, 0px));
+    transition: transform 180ms ease, box-shadow 220ms ease;
+    overflow: hidden;
+  }
+
+  [data-frame="tale"]               { --frame-hi: #f4d79a; --frame: #d4a65a; --frame-lo: #8c5d22; --name-ink: #120c06; }
+  [data-frame="chronicle"]          { --frame-hi: #f5a46a; --frame: #d26a2d; --frame-lo: #84360f; --name-ink: #120c06; }
+  [data-frame="myth"]               { --frame-hi: #4fc7a0; --frame: #179272; --frame-lo: #0a5442; --name-ink: #ffffff; }
+  [data-frame="dispatch"]           { --frame-hi: #d77ba6; --frame: #ac4678; --frame-lo: #66203f; --name-ink: #ffffff; }
+  [data-frame="codex"]              { --frame-hi: #9fb9e8; --frame: #5c81c6; --frame-lo: #2f4f8a; --name-ink: #0d1220; }
+  [data-frame="dragon"]             { --frame-hi: #c3a4da; --frame: #8d66ad; --frame-lo: #4f3168; --name-ink: #120c16; }
+  [data-frame="map"]                { --frame-hi: #4a4a56; --frame: #26262e; --frame-lo: #0b0b0f; --name-ink: #ffe9a8; }
+  [data-frame="vision"]             { --frame-hi: #ffe7a0; --frame: #d9a43a; --frame-lo: #7a4710; --name-ink: #1b1004; }
+
+  /* A chip of frame colour, for legends and lists. */
+  .frame-swatch {
+    display: inline-block;
+    flex: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+    background: linear-gradient(160deg, var(--frame-hi), var(--frame) 50%, var(--frame-lo));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  .ygo-card__frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-radius: 2.4cqw;
+    padding: 3.6cqw 4cqw 2.4cqw;
+    overflow: hidden;
+    background:
+      radial-gradient(140% 70% at 20% 0%, var(--frame-hi), transparent 55%),
+      radial-gradient(120% 60% at 90% 110%, var(--frame-lo), transparent 60%),
+      linear-gradient(165deg, var(--frame-hi) 0%, var(--frame) 42%, var(--frame-lo) 100%);
+    box-shadow: inset 0 0 0 0.45cqw rgba(0, 0, 0, 0.55), inset 0 0 3cqw rgba(0, 0, 0, 0.35);
+  }
+
+  /* Frame grain: the faint mottling printed into real card stock. */
+  .ygo-card__frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    mix-blend-mode: overlay;
+    background:
+      repeating-radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.5) 0 0.15cqw, transparent 0.15cqw 1.1cqw),
+      repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.35) 0 0.2cqw, transparent 0.2cqw 1.6cqw);
+  }
+
+  .ygo-card[data-frame="map"] .ygo-card__frame::before {
+    opacity: 0.5;
+    mix-blend-mode: screen;
+    background:
+      radial-gradient(0.35cqw 0.35cqw at 12% 18%, #fff 50%, transparent 52%),
+      radial-gradient(0.25cqw 0.25cqw at 78% 9%, #fff 50%, transparent 52%),
+      radial-gradient(0.3cqw 0.3cqw at 88% 64%, #fff 50%, transparent 52%),
+      radial-gradient(0.25cqw 0.25cqw at 6% 72%, #fff 50%, transparent 52%),
+      radial-gradient(0.3cqw 0.3cqw at 52% 95%, #fff 50%, transparent 52%),
+      repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0 0.2cqw, transparent 0.2cqw 1.6cqw);
+  }
+
+  .ygo-card__name {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1.6cqw;
+    min-height: 13cqw;
+    padding: 0.4cqw 1cqw 0.4cqw 2.4cqw;
+    border: 0.7cqw solid;
+    border-color: rgba(0, 0, 0, 0.5) rgba(255, 255, 255, 0.55) rgba(255, 255, 255, 0.6) rgba(0, 0, 0, 0.45);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.06) 45%, rgba(0, 0, 0, 0.1));
+  }
+
+  .ygo-card__title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-family: "Spectral SC", "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: calc(7.6cqw * var(--title-scale, 1));
+    line-height: 1.05;
+    color: var(--name-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.01em;
+    text-shadow: 0 0.2cqw 0 rgba(255, 255, 255, 0.18);
+  }
+  .ygo-card[data-frame="myth"] .ygo-card__title,
+  .ygo-card[data-frame="dispatch"] .ygo-card__title {
+    text-shadow: 0 0.3cqw 0.4cqw rgba(0, 0, 0, 0.55);
+  }
+  .ygo-card[data-frame="map"] .ygo-card__title {
+    background: linear-gradient(180deg, #fff6cf, #f2c14e 55%, #b9781a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+  }
+
+  /* Elemental orb, top right of the name bar. */
+  .attr-orb {
+    --orb-hi: #fff6c2;
+    --orb: #e8c13a;
+    --orb-lo: #7a5300;
+    --orb-ink: #4a3000;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--orb-size, 11.4cqw);
+    height: var(--orb-size, 11.4cqw);
+    border-radius: 999px;
+    background: radial-gradient(circle at 34% 28%, var(--orb-hi) 0%, var(--orb) 48%, var(--orb-lo) 100%);
+    /* Bevels scale with the orb, so it renders the same in or out of a card. */
+    --u: calc(var(--orb-size, 11.4cqw) / 25);
+    box-shadow: inset 0 calc(var(--u) * -1.3) calc(var(--u) * 2.2) rgba(0, 0, 0, 0.35), inset 0 calc(var(--u) * 1.1) calc(var(--u) * 1.3) rgba(255, 255, 255, 0.55), 0 0 0 var(--u) rgba(0, 0, 0, 0.55), 0 0 0 calc(var(--u) * 1.8) rgba(255, 240, 200, 0.45);
+  }
+  .attr-orb__glyph {
+    font-family: "Noto Serif JP", "Yu Mincho", "Hiragino Mincho ProN", "MS Mincho", serif;
+    font-weight: 900;
+    font-size: calc(var(--orb-size, 11.4cqw) * 0.61);
+    line-height: 1;
+    color: var(--orb-ink);
+    text-shadow: 0 calc(var(--u) * 0.45) 0 rgba(255, 255, 255, 0.35);
+    transform: translateY(calc(var(--u) * -0.45));
+  }
+  .attr-orb[data-attribute="light"]  { --orb-hi: #fffbe0; --orb: #f1cf4a; --orb-lo: #9a6a00; --orb-ink: #4d3300; }
+  .attr-orb[data-attribute="dark"]   { --orb-hi: #e2c4f5; --orb: #8a4fb8; --orb-lo: #2a0f40; --orb-ink: #ffffff; }
+  .attr-orb[data-attribute="fire"]   { --orb-hi: #ffd1a8; --orb: #e2441f; --orb-lo: #6e0d05; --orb-ink: #ffffff; }
+  .attr-orb[data-attribute="ice"]    { --orb-hi: #e6fbff; --orb: #4aa7e0; --orb-lo: #0f3c72; --orb-ink: #ffffff; }
+  .attr-orb[data-attribute="earth"]  { --orb-hi: #f0d8b0; --orb: #a2703c; --orb-lo: #3d240e; --orb-ink: #ffffff; }
+  .attr-orb[data-attribute="arcane"] { --orb-hi: #d6fff2; --orb: #2fb397; --orb-lo: #0a4a45; --orb-ink: #ffffff; }
+  .attr-orb[data-attribute="divine"] { --orb-hi: #fff4cf; --orb: #f0a93a; --orb-lo: #7a3a06; --orb-ink: #4a1d00; }
+  .attr-orb[data-attribute="dark"] .attr-orb__glyph,
+  .attr-orb[data-attribute="fire"] .attr-orb__glyph,
+  .attr-orb[data-attribute="ice"] .attr-orb__glyph,
+  .attr-orb[data-attribute="earth"] .attr-orb__glyph,
+  .attr-orb[data-attribute="arcane"] .attr-orb__glyph {
+    text-shadow: 0 calc(var(--u) * 0.6) var(--u) rgba(0, 0, 0, 0.6);
+  }
+
+  /* Level stars. */
+  .ygo-card__level {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5cqw;
+    min-height: 7.4cqw;
+    padding: 0.8cqw 1cqw 0;
+  }
+  .level-star {
+    display: grid;
+    place-items: center;
+    width: 5.8cqw;
+    height: 5.8cqw;
+    border-radius: 999px;
+    background: radial-gradient(circle at 35% 30%, #ffb27a 0%, #e0441c 55%, #6e1206 100%);
+    box-shadow: 0 0 0 0.3cqw rgba(0, 0, 0, 0.55), inset 0 0.3cqw 0.4cqw rgba(255, 255, 255, 0.4);
+    color: #ffe680;
+    font-size: 4.4cqw;
+    line-height: 1;
+    text-shadow: 0 0 0.6cqw rgba(255, 230, 120, 0.8);
+  }
+  .level-label {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 800;
+    font-size: 4.4cqw;
+    letter-spacing: 0.06em;
+    color: var(--name-ink);
+  }
+
+  /* Art box: an inset window onto the illustration. */
+  .ygo-card__art {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    margin: 0.8cqw 3.6cqw 0;
+    overflow: hidden;
+    border: 0.8cqw solid;
+    border-color: #2b1c10 #cdb88c #dcc89c #2b1c10;
+    background: #0a0604;
+    box-shadow: 0 0 0 0.3cqw rgba(0, 0, 0, 0.6);
+  }
+  .ygo-card__art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Generated art for entries without an illustration. */
+  .gen-art {
+    --a: #fff3c4;
+    --b: #f0b84a;
+    --c: #7a4a12;
+    --spin: 0deg;
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      repeating-radial-gradient(circle at 50% 54%, rgba(255, 255, 255, 0.07) 0 0.6cqw, transparent 0.6cqw 5cqw),
+      repeating-conic-gradient(from var(--spin) at 50% 54%, rgba(255, 255, 255, 0.10) 0deg 4deg, transparent 4deg 15deg),
+      radial-gradient(circle at 50% 54%, var(--a) 0%, var(--b) 34%, var(--c) 78%, #050302 100%);
+  }
+  .gen-art[data-attribute="light"]  { --a: #fffbe6; --b: #f4c552; --c: #7c4a0e; }
+  .gen-art[data-attribute="dark"]   { --a: #c792ee; --b: #5a2585; --c: #1a0629; }
+  .gen-art[data-attribute="fire"]   { --a: #ffe0a0; --b: #ee5a22; --c: #4a0905; }
+  .gen-art[data-attribute="ice"]    { --a: #f2feff; --b: #63bde9; --c: #0d2e5c; }
+  .gen-art[data-attribute="earth"]  { --a: #f5dfb3; --b: #a06a33; --c: #2c190a; }
+  .gen-art[data-attribute="arcane"] { --a: #e2fff6; --b: #33b89d; --c: #2a1150; }
+  .gen-art[data-attribute="divine"] { --a: #fffbe8; --b: #f2b443; --c: #6b2a06; }
+
+  .gen-art__ghost {
+    position: absolute;
+    right: -6%;
+    bottom: -14%;
+    font-family: "Noto Serif JP", "Yu Mincho", "MS Mincho", serif;
+    font-weight: 900;
+    font-size: 64cqw;
+    line-height: 1;
+    color: rgba(255, 255, 255, 0.10);
+    mix-blend-mode: overlay;
+    user-select: none;
+  }
+  .gen-art__emblem {
+    position: relative;
+    width: 44%;
+    height: 44%;
+    color: rgba(255, 252, 235, 0.92);
+    filter: drop-shadow(0 0 2.4cqw rgba(255, 255, 255, 0.55)) drop-shadow(0 0.8cqw 1.2cqw rgba(0, 0, 0, 0.45));
+  }
+  .gen-art[data-attribute="light"] .gen-art__emblem,
+  .gen-art[data-attribute="divine"] .gen-art__emblem {
+    color: rgba(80, 40, 0, 0.82);
+    filter: drop-shadow(0 0 2.4cqw rgba(255, 255, 255, 0.9));
+  }
+
+  /* Text box: the parchment where the effect text would go. */
+  .ygo-card__text {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 2.6cqw 0.6cqw 0;
+    padding: 1.4cqw 2.4cqw 1.2cqw;
+    background: linear-gradient(180deg, #f3e7c8 0%, #e6d4a6 100%);
+    border: 0.6cqw solid #8a6d3b;
+    box-shadow: inset 0 0 1.6cqw rgba(120, 85, 30, 0.3);
+    color: var(--parchment-ink);
+  }
+  .ygo-card__type {
+    margin: 0;
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 800;
+    font-size: 3.5cqw;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ygo-card__desc {
+    margin: 0.4cqw 0 0;
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 3.35cqw;
+    line-height: 1.24;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+  }
+  .ygo-card__stats {
+    margin-top: auto;
+    padding-top: 0.6cqw;
+    border-top: 0.35cqw solid var(--parchment-ink);
+    display: flex;
+    justify-content: flex-end;
+    gap: 3cqw;
+    font-family: "Spectral SC", Georgia, serif;
+    font-weight: 700;
+    font-size: 3.5cqw;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .ygo-card__foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 1cqw 1cqw 0;
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 2.6cqw;
+    line-height: 1;
+    color: var(--name-ink);
+    opacity: 0.85;
+  }
+  .ygo-card__draft {
+    position: absolute;
+    top: 30%;
+    left: -12%;
+    right: -12%;
+    z-index: 3;
+    transform: rotate(-24deg);
+    padding: 1.4cqw 0;
+    text-align: center;
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 800;
+    font-size: 5cqw;
+    letter-spacing: 0.4em;
+    color: #fff2d2;
+    background: rgba(125, 21, 12, 0.88);
+    box-shadow: 0 0.6cqw 1.6cqw rgba(0, 0, 0, 0.5);
+  }
+
+  /* Holographic sheen that sweeps across on hover — the "secret rare" foil. */
+  .ygo-card__foil {
+    position: absolute;
+    inset: 1.6cqw;
+    z-index: 2;
+    border-radius: 2.4cqw;
+    pointer-events: none;
+    opacity: 0;
+    mix-blend-mode: color-dodge;
+    background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.45) 42%, rgba(255, 140, 230, 0.35) 48%, rgba(120, 230, 255, 0.35) 54%, rgba(255, 250, 170, 0.35) 60%, transparent 75%);
+    background-size: 250% 250%;
+    background-position: var(--foil-x, 100%) 50%;
+    transition: opacity 220ms ease;
+  }
+
+  a.ygo-card:hover .ygo-card__body,
+  a.ygo-card:focus-visible .ygo-card__body {
+    --lift: -6px;
+    box-shadow: 0 1px 0 rgba(255, 230, 170, 0.12) inset, 0 24px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(242, 193, 78, 0.55), 0 0 28px rgba(242, 160, 50, 0.25);
+  }
+  a.ygo-card:hover .ygo-card__foil,
+  a.ygo-card:focus-visible .ygo-card__foil {
+    opacity: 0.9;
+  }
+  a.ygo-card:focus-visible {
+    outline: none;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Featured vision: a landscape card for the hero                          */
+  /* ---------------------------------------------------------------------- */
+
+  .vision-card {
+    --frame-hi: #ffe9a6;
+    --frame: #d6a03a;
+    --frame-lo: #6e3d0b;
+    position: relative;
+    border-radius: 1.1rem;
+    padding: 0.45rem;
+    background: linear-gradient(145deg, #2b1d12, #0c0704);
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 220, 140, 0.18), 0 0 60px rgba(242, 160, 50, 0.16);
+  }
+  .vision-card__frame {
+    position: relative;
+    border-radius: 0.8rem;
+    padding: clamp(0.65rem, 1.6vw, 1.15rem);
+    background:
+      radial-gradient(120% 60% at 15% 0%, var(--frame-hi), transparent 55%),
+      radial-gradient(120% 70% at 95% 100%, var(--frame-lo), transparent 60%),
+      linear-gradient(165deg, var(--frame-hi) 0%, var(--frame) 45%, var(--frame-lo) 100%);
+    box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+  .vision-card__frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.25;
+    mix-blend-mode: overlay;
+    background: repeating-linear-gradient(115deg, rgba(0, 0, 0, 0.35) 0 2px, transparent 2px 14px);
+  }
+  .vision-card__name {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0.4rem 0.35rem 1rem;
+    border: 4px solid;
+    border-color: rgba(0, 0, 0, 0.5) rgba(255, 255, 255, 0.55) rgba(255, 255, 255, 0.6) rgba(0, 0, 0, 0.45);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.06) 45%, rgba(0, 0, 0, 0.1));
+  }
+  .vision-card__name .attr-orb {
+    --orb-size: clamp(2.3rem, 5vw, 3.1rem);
+  }
+  .vision-card__art {
+    position: relative;
+    margin-top: clamp(0.6rem, 1.4vw, 0.9rem);
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    border: 5px solid;
+    border-color: #2b1c10 #cdb88c #dcc89c #2b1c10;
+    background: #050302;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+  }
+  .vision-card__art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .vision-card__text {
+    position: relative;
+    margin-top: clamp(0.6rem, 1.4vw, 0.9rem);
+    padding: 0.8rem 1.1rem 0.7rem;
+    background: linear-gradient(180deg, #f3e7c8 0%, #e6d4a6 100%);
+    border: 3px solid #8a6d3b;
+    box-shadow: inset 0 0 14px rgba(120, 85, 30, 0.3);
+    color: var(--parchment-ink);
+  }
+
+  /* The six dragons, standing in for the vision until one has been rendered. */
+  .vision-placeholder {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background:
+      repeating-conic-gradient(from 8deg at 50% 50%, rgba(255, 210, 140, 0.07) 0deg 3deg, transparent 3deg 12deg),
+      radial-gradient(circle at 50% 50%, #5a2c0e 0%, #23110a 45%, #070302 80%);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Card back — sections that haven't been revealed yet                      */
+  /* ---------------------------------------------------------------------- */
+
+  .card-back {
+    container-type: inline-size;
+    position: relative;
+    aspect-ratio: 59 / 86;
+    width: 100%;
+  }
+  .card-back__body {
+    height: 100%;
+    border-radius: 3.4cqw;
+    padding: 4cqw;
+    background: linear-gradient(145deg, #3a2615, #120a05);
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), inset 0 0 0 0.6cqw rgba(0, 0, 0, 0.6);
+  }
+  .card-back__face {
+    position: relative;
+    height: 100%;
+    border-radius: 2cqw;
+    overflow: hidden;
+    border: 1cqw solid #1c1008;
+    background:
+      repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 160, 60, 0.18) 0deg 6deg, rgba(0, 0, 0, 0) 6deg 18deg),
+      radial-gradient(ellipse at 50% 50%, #c25a17 0%, #6b2a0b 30%, #2a1006 60%, #0b0503 100%);
+  }
+  .card-back__face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 44% 30% at 50% 50%, transparent 92%, rgba(0, 0, 0, 0.55) 93%, transparent 100%);
+  }
+  .card-back__oval {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 66%;
+    aspect-ratio: 2 / 3;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(ellipse at 50% 40%, #3b1607 0%, #140603 70%);
+    box-shadow: 0 0 0 1.4cqw #c9902e, 0 0 0 2.2cqw #3a1a06, 0 0 8cqw rgba(255, 170, 60, 0.45), inset 0 0 6cqw rgba(0, 0, 0, 0.8);
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* Long-form reading                                                       */
+  /* ---------------------------------------------------------------------- */
+
+  .scroll {
+    position: relative;
+    border-radius: 0.6rem;
+    background:
+      radial-gradient(120% 60% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 60%),
+      linear-gradient(180deg, #f4e9cd 0%, #ead9ae 100%);
+    color: var(--parchment-ink);
+    border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 4px #2b1c10, 0 0 0 5px rgba(242, 193, 78, 0.4), 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 0 50px rgba(140, 100, 40, 0.25);
+  }
+
+  .prose-lore {
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 1.1rem;
+    line-height: 1.75;
+    color: #24190e;
+    overflow-wrap: break-word;
+  }
+  .prose-lore > * + * { margin-top: 1em; }
+  .prose-lore h1,
+  .prose-lore h2,
+  .prose-lore h3,
+  .prose-lore h4 {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    color: #5a1a0a;
+    line-height: 1.25;
+    margin-top: 2em;
+    scroll-margin-top: 1.5rem;
+  }
+  .prose-lore h1 { font-size: 1.75rem; }
+  .prose-lore h2 { font-size: 1.45rem; }
+  .prose-lore h3 { font-size: 1.2rem; }
+  .prose-lore h4 { font-size: 1.05rem; }
+  .prose-lore h1:first-child,
+  .prose-lore h2:first-child,
+  .prose-lore h3:first-child { margin-top: 0; }
+  .prose-lore a { color: #8a1f0d; text-decoration: underline; text-underline-offset: 2px; }
+  .prose-lore a:hover { color: #b3301a; }
+  .prose-lore strong { font-weight: 700; color: #1a1008; }
+  .prose-lore ul { list-style: disc; padding-left: 1.4em; }
+  .prose-lore ol { list-style: decimal; padding-left: 1.6em; }
+  .prose-lore li + li { margin-top: 0.35em; }
+  .prose-lore li > p { margin: 0; }
+  .prose-lore blockquote {
+    border-left: 3px solid #b9781a;
+    padding: 0.2em 0 0.2em 1em;
+    color: #4a3520;
+    font-style: italic;
+  }
+  .prose-lore hr {
+    border: 0;
+    height: 1.2em;
+    margin: 2em 0;
+    background: radial-gradient(circle, #8a6d3b 1.5px, transparent 2px) center / 1.4em 1.2em repeat-x;
+    max-width: 6em;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .prose-lore .table-wrap { overflow-x: auto; }
+  .prose-lore table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    display: block;
+    overflow-x: auto;
+  }
+  .prose-lore th,
+  .prose-lore td {
+    border: 1px solid #b59a64;
+    padding: 0.45em 0.7em;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose-lore th {
+    background: rgba(90, 26, 10, 0.12);
+    font-family: "Cinzel", Georgia, serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+  }
+  .prose-lore tr:nth-child(even) td { background: rgba(255, 255, 255, 0.25); }
+  .prose-lore code {
+    font-size: 0.9em;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1em 0.3em;
+    border-radius: 0.25em;
+  }
+  .prose-lore img { max-width: 100%; height: auto; }
+  .prose-lore .footnotes { font-size: 0.9rem; color: #4a3520; }
+  .prose-lore .footnotes-sep { margin: 2.5em 0 1em; border: 0; border-top: 1px solid #b59a64; height: 0; background: none; max-width: none; }
+  .prose-lore .footnote-ref { font-size: 0.75em; }
+  .prose-lore .footnote-ref a,
+  .prose-lore .footnote-backref { text-decoration: none; }
+
+  /* Search hit highlight */
+  mark.hit {
+    background: rgba(242, 193, 78, 0.38);
+    color: inherit;
+    border-radius: 0.2em;
+    padding: 0 0.1em;
+  }
+
+  .spinner {
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+.scroll .skeleton {
+  background: linear-gradient(90deg, rgba(60, 40, 10, 0.08) 25%, rgba(60, 40, 10, 0.16) 50%, rgba(60, 40, 10, 0.08) 75%);
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ygo-card__body,
+  .ygo-card__foil,
+  .btn {
+    transition: none;
+  }
+  .ygo-card__body {
+    transform: none !important;
+  }
+  .skeleton,
+  .spinner {
+    animation-duration: 3s;
+  }
+}

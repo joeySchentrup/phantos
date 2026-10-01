@@ -1,0 +1,3 @@
+Oracle of Erosia to Duke Ferdinand, one of the Redeemers of Erosia, “The Dragons are not the ultimate creators, but rather are servants of Kalistos. There is also another who Kalistos made that is between him and the dragons, he is the Master. We are given life through the Master and are emanations of him. We live to serve him. We are Enpeecies.
+
+“There exists another being though that has life outside of the Master, these are Peecies. Peecies are only Peecies for awhile, but will return to being an Enpeecie once their time is done. The souls of Peecies are under the influence of one other than the Master, of the same level of being as the Master. There exists other Masters who have their own worlds that are separate from ours and they live by different rules.”

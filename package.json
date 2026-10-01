@@ -1,0 +1,38 @@
+{
+  "name": "phantos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "react-router build",
+    "dev": "react-router dev --host",
+    "typecheck": "react-router typegen && tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-router/node": "^7.18.4",
+    "dompurify": "^3.4.16",
+    "isbot": "^5.1.28",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-footnote": "^4.0.0",
+    "pocketbase": "^0.28.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.18.4"
+  },
+  "devDependencies": {
+    "@react-router/dev": "^7.18.4",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^20",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "autoprefixer": "^10.4.17",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.8.3",
+    "vite": "^6.4.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^4.1.4"
+  }
+}
