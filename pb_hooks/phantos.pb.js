@@ -61,6 +61,30 @@ onRecordUpdate((e) => {
 }, 'hero_updates');
 
 // ---------------------------------------------------------------------------
+// Electrum: accounts and shop items keep tidy names
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareElectrumAccount(e.record);
+  e.next();
+}, 'electrum_accounts');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareElectrumAccount(e.record);
+  e.next();
+}, 'electrum_accounts');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareShopItem(e.record);
+  e.next();
+}, 'electrum_shop');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareShopItem(e.record);
+  e.next();
+}, 'electrum_shop');
+
+// ---------------------------------------------------------------------------
 // Chronicle: eras run forwards, points are a single line
 // ---------------------------------------------------------------------------
 
@@ -83,6 +107,50 @@ onRecordUpdate((e) => {
   require(`${__hooks}/phantos/lib.js`).preparePoint(e.record);
   e.next();
 }, 'timeline_points');
+
+// ---------------------------------------------------------------------------
+// Atlas: charts get a slug; what stands on them stays on whole chart units
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareChart(e.app, e.record);
+  e.next();
+}, 'charts');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareChart(e.app, e.record);
+  e.next();
+}, 'charts');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePlace(e.app, e.record);
+  e.next();
+}, 'places');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePlace(e.app, e.record);
+  e.next();
+}, 'places');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareRealm(e.app, e.record);
+  e.next();
+}, 'realms');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareRealm(e.app, e.record);
+  e.next();
+}, 'realms');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareFeature(e.app, e.record);
+  e.next();
+}, 'features');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareFeature(e.app, e.record);
+  e.next();
+}, 'features');
 
 // ---------------------------------------------------------------------------
 // Create the Dungeon Master from DM_EMAIL / DM_PASSWORD on first start

@@ -205,6 +205,21 @@ function prepareHeroUpdate(record) {
 }
 
 // ---------------------------------------------------------------------------
+// Electrum record upkeep
+// ---------------------------------------------------------------------------
+
+/** An account is named on one line. Its amounts are whole and never negative; the fields see to that. */
+function prepareElectrumAccount(record) {
+  record.set('name', record.getString('name').replace(/\s+/g, ' ').trim());
+}
+
+/** A shop item's name and description are a line each. */
+function prepareShopItem(record) {
+  record.set('name', record.getString('name').replace(/\s+/g, ' ').trim());
+  record.set('description', record.getString('description').replace(/\s+/g, ' ').trim());
+}
+
+// ---------------------------------------------------------------------------
 // Chronicle record upkeep
 // ---------------------------------------------------------------------------
 
@@ -226,6 +241,124 @@ function prepareEra(record) {
 /** A point is a single line: line breaks and runs of spaces collapse to one space. */
 function preparePoint(record) {
   record.set('text', record.getString('text').replace(/\s+/g, ' ').trim());
+}
+
+// ---------------------------------------------------------------------------
+// Atlas record upkeep
+// ---------------------------------------------------------------------------
+
+const CHART_WIDTH = 1400;
+const CHART_HEIGHT = 700;
+const SPREAD_MIN = 8;
+const SPREAD_MAX = 80;
+const SPREAD_DEFAULT = 20;
+
+/** A json field's value, or null when it is empty or isn't JSON. */
+function readJson(record, field) {
+  try {
+    return JSON.parse(record.getString(field));
+  } catch (err) {
+    return null;
+  }
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+/** The size of the chart a place, realm or feature is drawn on. */
+function chartBounds(app, record) {
+  const chart = findOne(app, 'charts', 'id = {:id}', { id: record.getString('chart') });
+  return {
+    width: (chart && chart.getInt('width')) || CHART_WIDTH,
+    height: (chart && chart.getInt('height')) || CHART_HEIGHT,
+  };
+}
+
+/** `[x, y]` on whole chart units inside the chart, or null if it isn't a pair of numbers. */
+function chartPoint(value, bounds) {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const x = Number(value[0]);
+  const y = Number(value[1]);
+  if (!isFinite(x) || !isFinite(y)) return null;
+  return [clamp(Math.round(x), 0, bounds.width), clamp(Math.round(y), 0, bounds.height)];
+}
+
+/** Every point of a json field, tidied. Anything that isn't a list of pairs is refused. */
+function chartPoints(record, field, bounds) {
+  const value = readJson(record, field);
+  if (!Array.isArray(value)) throw new BadRequestError('The points of ' + (record.getString('name') || 'this') + ' are missing.');
+
+  const points = [];
+  for (let i = 0; i < value.length; i++) {
+    const point = chartPoint(value[i], bounds);
+    if (!point) throw new BadRequestError('Every point on the chart is a pair of numbers: [x, y].');
+    points.push(point);
+  }
+  return points;
+}
+
+function tidyName(record, field) {
+  record.set(field, record.getString(field).replace(/\s+/g, ' ').trim());
+}
+
+/** A chart gets a unique slug and a size; its words lose stray whitespace. */
+function prepareChart(app, record) {
+  tidyName(record, 'name');
+  tidyName(record, 'dateline');
+  tidyName(record, 'description');
+
+  const requested = slugify(record.getString('slug'));
+  const base = requested || slugify(record.getString('name'));
+  record.set('slug', uniqueSlug(app, 'charts', base, record.id));
+
+  if (!record.getInt('width')) record.set('width', CHART_WIDTH);
+  if (!record.getInt('height')) record.set('height', CHART_HEIGHT);
+}
+
+/** A place stands on a whole chart unit, inside its chart. */
+function preparePlace(app, record) {
+  tidyName(record, 'name');
+  tidyName(record, 'realm');
+
+  const bounds = chartBounds(app, record);
+  record.set('x', clamp(Math.round(record.getFloat('x')), 0, bounds.width));
+  record.set('y', clamp(Math.round(record.getFloat('y')), 0, bounds.height));
+}
+
+/** A realm is a polygon: three corners at least, each inside the chart. */
+function prepareRealm(app, record) {
+  tidyName(record, 'name');
+  tidyName(record, 'standing');
+  record.set('tone', clamp(Math.round(record.getFloat('tone')), 0, 5));
+
+  const bounds = chartBounds(app, record);
+  const points = chartPoints(record, 'points', bounds);
+  if (points.length < 3) throw new BadRequestError('A realm needs at least three corners.');
+  record.set('points', points);
+
+  // With no label of its own, the name is written in the middle of the corners.
+  record.set('label', chartPoint(readJson(record, 'label'), bounds));
+}
+
+/**
+ * Terrain comes in two shapes. A forest or lake is one point, its heart, and
+ * a spread; a mountain range or river is a line and has no spread.
+ */
+function prepareFeature(app, record) {
+  tidyName(record, 'name');
+
+  const kind = record.getString('kind');
+  const points = chartPoints(record, 'points', chartBounds(app, record));
+
+  if (kind === 'forest' || kind === 'lake') {
+    if (points.length !== 1) throw new BadRequestError('A forest or lake has a single point: its heart.');
+    record.set('spread', clamp(Math.round(record.getFloat('spread')) || SPREAD_DEFAULT, SPREAD_MIN, SPREAD_MAX));
+  } else {
+    if (points.length < 2) throw new BadRequestError('A mountain range or river needs at least two points.');
+    record.set('spread', 0);
+  }
+  record.set('points', points);
 }
 
 // ---------------------------------------------------------------------------
@@ -392,8 +525,14 @@ module.exports = {
   preparePantheon: preparePantheon,
   prepareHero: prepareHero,
   prepareHeroUpdate: prepareHeroUpdate,
+  prepareElectrumAccount: prepareElectrumAccount,
+  prepareShopItem: prepareShopItem,
   prepareEra: prepareEra,
   preparePoint: preparePoint,
+  prepareChart: prepareChart,
+  preparePlace: preparePlace,
+  prepareRealm: prepareRealm,
+  prepareFeature: prepareFeature,
   search: search,
   ensureDungeonMaster: ensureDungeonMaster,
 };

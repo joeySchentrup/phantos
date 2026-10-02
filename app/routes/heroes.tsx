@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { Route } from "./+types/heroes";
-import { countUpdatesByHero, listHeroes } from "../backend/api";
+import { countUpdatesByHero, electrumByHero, listHeroes } from "../backend/api";
 import { CardGridSkeleton } from "../components/CardGrid";
 import HeroGrid from "../components/HeroGrid";
 import { sortHeroes } from "../lib/heroes";
@@ -23,6 +23,7 @@ export default function Heroes() {
   const [draft, setDraft] = useState(query);
   const [heroes, setHeroes] = useState<HeroSummary[]>([]);
   const [updateCounts, setUpdateCounts] = useState<Record<string, number>>({});
+  const [electrum, setElectrum] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const debounce = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -70,6 +71,13 @@ export default function Heroes() {
     countUpdatesByHero()
       .then(setUpdateCounts)
       .catch(() => setUpdateCounts({}));
+  }, [isDm]);
+
+  // The stars on each card. Without them a card reads [HERO CARD].
+  useEffect(() => {
+    electrumByHero()
+      .then(setElectrum)
+      .catch(() => setElectrum({}));
   }, [isDm]);
 
   const searching = query.trim().length > 0;
@@ -137,7 +145,7 @@ export default function Heroes() {
         ) : isLoading ? (
           <CardGridSkeleton count={4} />
         ) : heroes.length ? (
-          <HeroGrid items={heroes} updateCounts={updateCounts} />
+          <HeroGrid items={heroes} updateCounts={updateCounts} electrum={electrum} />
         ) : searching ? (
           <div className="panel mx-auto max-w-xl p-8 text-center">
             <p className="font-heading text-xl font-bold text-[#f4e6c3]">No heroes match.</p>

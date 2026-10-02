@@ -1,4 +1,4 @@
-/** Top-level sections. The atlas is still face-down. */
+/** Top-level sections. One that isn't `live` yet is linked as a face-down card. */
 export interface Section {
   path: string;
   label: string;
@@ -17,9 +17,8 @@ export const SECTIONS: Section[] = [
   {
     path: "/atlas",
     label: "Atlas",
-    live: false,
-    blurb: "Interactive maps of the known world.",
-    teaser: ["Hurly", "Korre", "Neua", "Nova Roma", "The Twilight"],
+    live: true,
+    blurb: "Charts of the known world: every realm, range, river and city.",
   },
   {
     path: "/pantheon",

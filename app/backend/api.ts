@@ -1,5 +1,8 @@
 import type { ListResult } from 'pocketbase';
+import { DEFAULT_CHART_SLUG } from '../lib/atlas';
+import type { Chart, Feature, FeatureInput, Place, PlaceInput, Realm, RealmInput } from '../types/atlas';
 import type { Era, EraInput, TimelinePoint, TimelinePointInput } from '../types/chronicle';
+import type { ElectrumAccount, ElectrumAccountInput, LevelCost, ShopItem, ShopItemInput } from '../types/electrum';
 import type {
   FeaturedImage,
   LoreCategory,
@@ -327,7 +330,7 @@ export async function updateHero(id: string, data: FormData): Promise<Hero> {
   }
 }
 
-/** Deletes the hero; their updates go with them. */
+/** Deletes the hero; their updates go with them, and their electrum is left without a hero. */
 export async function deleteHero(id: string): Promise<void> {
   try {
     await pb.collection('heroes').delete(id);
@@ -381,6 +384,129 @@ export async function deleteHeroUpdate(id: string): Promise<void> {
     await pb.collection('hero_updates').delete(id);
   } catch (error) {
     console.error('Error deleting the hero update:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Electrum
+// ---------------------------------------------------------------------------
+
+/** An account with the card of its hero, when the visitor may see them. */
+const ACCOUNT_QUERY = {
+  expand: 'hero',
+  fields: '*,' + HERO_FIELDS.split(',').map((field) => `expand.hero.${field}`).join(','),
+};
+
+/** The whole ledger, by name: every account, with or without a hero. */
+export async function listElectrumAccounts(): Promise<ElectrumAccount[]> {
+  try {
+    return await pb.collection('electrum_accounts').getFullList<ElectrumAccount>({ sort: 'name,created', ...ACCOUNT_QUERY, requestKey: null });
+  } catch (error) {
+    console.error('Error listing electrum accounts:', error);
+    throw error;
+  }
+}
+
+/** A hero's account, or null when they have none. */
+export async function getElectrumForHero(heroId: string): Promise<ElectrumAccount | null> {
+  try {
+    const result = await pb.collection('electrum_accounts').getList<ElectrumAccount>(1, 1, {
+      filter: pb.filter('hero = {:hero}', { hero: heroId }),
+      skipTotal: true,
+      requestKey: null,
+    });
+    return result.items[0] ?? null;
+  } catch (error) {
+    console.error('Error fetching the electrum account:', error);
+    throw error;
+  }
+}
+
+/** How much electrum each hero holds, by hero id. */
+export async function electrumByHero(): Promise<Record<string, number>> {
+  try {
+    const records = await pb.collection('electrum_accounts').getFullList<{ hero: string; amount: number }>({
+      filter: 'hero != ""',
+      fields: 'hero,amount',
+      requestKey: null,
+    });
+    const amounts: Record<string, number> = {};
+    for (const record of records) amounts[record.hero] = record.amount;
+    return amounts;
+  } catch (error) {
+    console.error('Error listing electrum by hero:', error);
+    throw error;
+  }
+}
+
+/** Opens the account, or changes only the given fields of it when `id` is given. */
+export async function saveElectrumAccount(data: Partial<ElectrumAccountInput>, id?: string): Promise<ElectrumAccount> {
+  const options = { ...ACCOUNT_QUERY, requestKey: null };
+  try {
+    return id
+      ? await pb.collection('electrum_accounts').update<ElectrumAccount>(id, data, options)
+      : await pb.collection('electrum_accounts').create<ElectrumAccount>(data, options);
+  } catch (error) {
+    console.error('Error saving the electrum account:', error);
+    throw error;
+  }
+}
+
+/**
+ * Adds to what an account holds, or takes from it when `change` is negative.
+ * Electrum taken as `spent` is counted in the account's spending too. The
+ * server does the sum, so two DMs adjusting at once both count.
+ */
+export async function adjustElectrum(id: string, change: number, spent = false): Promise<ElectrumAccount> {
+  const body: Record<string, number> = change >= 0 ? { 'amount+': change } : { 'amount-': -change };
+  if (change < 0 && spent) body['spent+'] = -change;
+  try {
+    return await pb.collection('electrum_accounts').update<ElectrumAccount>(id, body, { ...ACCOUNT_QUERY, requestKey: null });
+  } catch (error) {
+    console.error('Error adjusting the electrum account:', error);
+    throw error;
+  }
+}
+
+/** The shop, cheapest first. */
+export async function listShopItems(): Promise<ShopItem[]> {
+  try {
+    return await pb.collection('electrum_shop').getFullList<ShopItem>({ sort: 'price,name', requestKey: null });
+  } catch (error) {
+    console.error('Error listing the electrum shop:', error);
+    throw error;
+  }
+}
+
+/** Creates the shop item, or updates it when `id` is given. */
+export async function saveShopItem(data: ShopItemInput, id?: string): Promise<ShopItem> {
+  const body = { name: data.name, price: data.price, description: data.description };
+  try {
+    return id
+      ? await pb.collection('electrum_shop').update<ShopItem>(id, body, { requestKey: null })
+      : await pb.collection('electrum_shop').create<ShopItem>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the shop item:', error);
+    throw error;
+  }
+}
+
+export async function deleteShopItem(id: string): Promise<void> {
+  try {
+    await pb.collection('electrum_shop').delete(id);
+  } catch (error) {
+    console.error('Error deleting the shop item:', error);
+    throw error;
+  }
+}
+
+/** What each level costs to reach, lowest level first. */
+export async function listLevelCosts(): Promise<LevelCost[]> {
+  try {
+    return await pb.collection('electrum_levels').getFullList<LevelCost>({ sort: 'level', requestKey: null });
+  } catch (error) {
+    console.error('Error listing level up costs:', error);
     throw error;
   }
 }
@@ -460,6 +586,148 @@ export async function deleteTimelinePoint(id: string): Promise<void> {
     await pb.collection('timeline_points').delete(id);
   } catch (error) {
     console.error('Error deleting the timeline point:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Atlas
+// ---------------------------------------------------------------------------
+
+/** A place with the card of its lore entry, and nothing more of the entry than the card needs. */
+const PLACE_QUERY = {
+  expand: 'lore',
+  fields: '*,' + SUMMARY_FIELDS.split(',').map((field) => `expand.lore.${field}`).join(','),
+};
+
+/** Every chart the visitor may see: the default chart first, the rest by name. Drafts only for DMs. */
+export async function listCharts(): Promise<Chart[]> {
+  try {
+    const charts = await pb.collection('charts').getFullList<Chart>({ sort: 'name', requestKey: null });
+    return [...charts.filter((chart) => chart.slug === DEFAULT_CHART_SLUG), ...charts.filter((chart) => chart.slug !== DEFAULT_CHART_SLUG)];
+  } catch (error) {
+    console.error('Error listing charts:', error);
+    throw error;
+  }
+}
+
+export async function getChartBySlug(slug: string): Promise<Chart> {
+  try {
+    return await pb.collection('charts').getFirstListItem<Chart>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the chart:', error);
+    throw error;
+  }
+}
+
+/**
+ * What stands on a chart comes back in the order it was added: the realm
+ * drawn last lies on top, and is the one a click finds.
+ */
+function onChart(chartId: string) {
+  return { filter: pb.filter('chart = {:chart}', { chart: chartId }), sort: '@rowid', requestKey: null };
+}
+
+/** A chart's places, each with the card of its lore entry when the visitor may read it. */
+export async function listPlaces(chartId: string): Promise<Place[]> {
+  try {
+    return await pb.collection('places').getFullList<Place>({ ...onChart(chartId), ...PLACE_QUERY });
+  } catch (error) {
+    console.error('Error listing places:', error);
+    throw error;
+  }
+}
+
+export async function listRealms(chartId: string): Promise<Realm[]> {
+  try {
+    return await pb.collection('realms').getFullList<Realm>(onChart(chartId));
+  } catch (error) {
+    console.error('Error listing realms:', error);
+    throw error;
+  }
+}
+
+export async function listFeatures(chartId: string): Promise<Feature[]> {
+  try {
+    return await pb.collection('features').getFullList<Feature>(onChart(chartId));
+  } catch (error) {
+    console.error('Error listing terrain:', error);
+    throw error;
+  }
+}
+
+/** Creates the place, or updates it when `id` is given. */
+export async function savePlace(data: PlaceInput, id?: string): Promise<Place> {
+  const body = { chart: data.chart, name: data.name, kind: data.kind, x: data.x, y: data.y, realm: data.realm, lore: data.lore, published: data.published };
+  const options = { ...PLACE_QUERY, requestKey: null };
+  try {
+    return id
+      ? await pb.collection('places').update<Place>(id, body, options)
+      : await pb.collection('places').create<Place>(body, options);
+  } catch (error) {
+    console.error('Error saving the place:', error);
+    throw error;
+  }
+}
+
+export async function deletePlace(id: string): Promise<void> {
+  try {
+    await pb.collection('places').delete(id);
+  } catch (error) {
+    console.error('Error deleting the place:', error);
+    throw error;
+  }
+}
+
+/** Creates the realm, or updates it when `id` is given. */
+export async function saveRealm(data: RealmInput, id?: string): Promise<Realm> {
+  const body = {
+    chart: data.chart,
+    name: data.name,
+    standing: data.standing,
+    tone: data.tone,
+    label: data.label,
+    points: data.points,
+    lore: data.lore,
+    published: data.published,
+  };
+  try {
+    return id
+      ? await pb.collection('realms').update<Realm>(id, body, { requestKey: null })
+      : await pb.collection('realms').create<Realm>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the realm:', error);
+    throw error;
+  }
+}
+
+export async function deleteRealm(id: string): Promise<void> {
+  try {
+    await pb.collection('realms').delete(id);
+  } catch (error) {
+    console.error('Error deleting the realm:', error);
+    throw error;
+  }
+}
+
+/** Creates the terrain, or updates it when `id` is given. */
+export async function saveFeature(data: FeatureInput, id?: string): Promise<Feature> {
+  const body = { chart: data.chart, name: data.name, kind: data.kind, points: data.points, spread: data.spread, published: data.published };
+  try {
+    return id
+      ? await pb.collection('features').update<Feature>(id, body, { requestKey: null })
+      : await pb.collection('features').create<Feature>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the terrain:', error);
+    throw error;
+  }
+}
+
+export async function deleteFeature(id: string): Promise<void> {
+  try {
+    await pb.collection('features').delete(id);
+  } catch (error) {
+    console.error('Error deleting the terrain:', error);
     throw error;
   }
 }
