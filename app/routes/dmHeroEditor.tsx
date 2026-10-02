@@ -2,16 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/dmHeroEditor";
 import {
+  cardArtUrl,
   createHero,
   deleteHero,
   errorMessage,
-  fileUrl,
   getHeroById,
   isDungeonMaster,
   updateHero,
 } from "../backend/api";
 import HeroCard from "../components/HeroCard";
 import LoreMarkdown from "../components/LoreMarkdown";
+import { tryMakeCardArt } from "../lib/cardArt";
 import { ATTRIBUTE_ORDER, ATTRIBUTES, autoSummary } from "../lib/lore";
 import type { Hero } from "../types/hero";
 import type { LoreAttribute } from "../types/lore";
@@ -170,8 +171,15 @@ export default function DmHeroEditor() {
     data.append("attribute", draft.attribute);
     data.append("backstory", draft.backstory);
     data.append("published", String(draft.published));
-    if (portraitFile) data.append("portrait", portraitFile);
-    else if (removePortrait) data.append("portrait", "");
+    if (portraitFile) {
+      data.append("portrait", portraitFile);
+      // The small copy the cards load; the full image stays for this page.
+      const cardArt = await tryMakeCardArt(portraitFile);
+      if (cardArt) data.append("card_art", cardArt);
+    } else if (removePortrait) {
+      data.append("portrait", "");
+      data.append("card_art", "");
+    }
 
     try {
       const saved = isNew ? await createHero(data) : await updateHero(id!, data);
@@ -208,7 +216,7 @@ export default function DmHeroEditor() {
     );
   }
 
-  const existingPortrait = record?.portrait && !removePortrait ? fileUrl(record, record.portrait, "480x0") : "";
+  const existingPortrait = record?.portrait && !removePortrait ? cardArtUrl(record, record.portrait, record.card_art) : "";
   const previewHero = {
     ...draft,
     id: record?.id,

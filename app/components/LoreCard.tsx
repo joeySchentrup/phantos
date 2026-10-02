@@ -1,4 +1,4 @@
-import { fileUrl } from "~/backend/api";
+import { cardArtUrl } from "~/backend/api";
 import {
   ATTRIBUTES,
   CATEGORIES,
@@ -19,7 +19,7 @@ type CardLore = Pick<
   LoreSummary,
   "title" | "category" | "attribute" | "author" | "summary" | "word_count" | "cover" | "created" | "published"
 > &
-  Partial<Pick<LoreSummary, "id" | "collectionId" | "collectionName" | "slug">>;
+  Partial<Pick<LoreSummary, "id" | "collectionId" | "collectionName" | "slug" | "card_art">>;
 
 interface LoreCardProps {
   lore: CardLore;
@@ -27,29 +27,16 @@ interface LoreCardProps {
   to?: string;
   /** Overrides the stored cover, e.g. an unsaved upload in the editor. */
   coverUrl?: string;
-  /** Hint for the browser about how wide the card renders. */
-  imageSizes?: string;
   className?: string;
 }
 
-function CardArt({ lore, coverUrl, imageSizes }: { lore: CardLore; coverUrl?: string; imageSizes?: string }) {
-  const src =
-    coverUrl ||
-    (lore.cover && lore.id && lore.collectionId ? fileUrl(lore as Required<CardLore>, lore.cover, "480x0") : "");
+function CardArt({ lore, coverUrl }: { lore: CardLore; coverUrl?: string }) {
+  const src = coverUrl || cardArtUrl(lore, lore.cover, lore.card_art);
 
   if (src) {
-    const large =
-      !coverUrl && lore.id && lore.collectionId ? fileUrl(lore as Required<CardLore>, lore.cover, "1600x0") : "";
     return (
       <div className="ygo-card__art">
-        <img
-          src={src}
-          srcSet={large ? `${src} 480w, ${large} 1600w` : undefined}
-          sizes={imageSizes}
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
+        <img src={src} alt="" loading="lazy" decoding="async" />
       </div>
     );
   }
@@ -73,7 +60,7 @@ function CardArt({ lore, coverUrl, imageSizes }: { lore: CardLore; coverUrl?: st
   );
 }
 
-export default function LoreCard({ lore, to, coverUrl, imageSizes, className = "" }: LoreCardProps) {
+export default function LoreCard({ lore, to, coverUrl, className = "" }: LoreCardProps) {
   const minutes = readingMinutes(lore.word_count);
   const category = CATEGORIES[lore.category]?.label ?? "Lore";
 
@@ -97,7 +84,7 @@ export default function LoreCard({ lore, to, coverUrl, imageSizes, className = "
       </header>
 
       <CardLevel level={levelFor(lore.word_count)} fallback={`[${category.toUpperCase()} CARD]`} />
-      <CardArt lore={lore} coverUrl={coverUrl} imageSizes={imageSizes} />
+      <CardArt lore={lore} coverUrl={coverUrl} />
 
       <div className="ygo-card__text">
         <p className="ygo-card__type">{typeLine(lore.category, lore.attribute, lore.author)}</p>

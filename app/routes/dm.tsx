@@ -15,6 +15,7 @@ import {
   uploadFeaturedImage,
 } from "../backend/api";
 import AttributeOrb from "../components/AttributeOrb";
+import CardArtPanel from "../components/CardArtPanel";
 import { CATEGORIES, formatDate } from "../lib/lore";
 import type { FeaturedImage, LoreSummary } from "../types/lore";
 
@@ -371,6 +372,7 @@ export default function DungeonMaster() {
 
       <div className="mt-8 space-y-8">
         <FeaturedImagePanel />
+        <CardArtPanel />
         <LoreList />
       </div>
     </main>

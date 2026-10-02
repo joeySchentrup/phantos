@@ -119,7 +119,7 @@ export default function PantheonEntry() {
         <aside className="lg:sticky lg:top-6 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:self-start">
           <div className="flex items-start gap-4 sm:gap-6 lg:block">
             <div className="w-[8.5rem] shrink-0 min-[420px]:w-40 sm:w-48 lg:w-auto">
-              <PantheonCard member={member} imageSizes="(min-width: 1024px) 300px, 200px" loreCount={lore?.length} />
+              <PantheonCard member={member} loreCount={lore?.length} />
             </div>
 
             <dl className="panel min-w-0 flex-1 px-3 py-1 sm:px-4 lg:mt-6 lg:py-2">

@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/dmEditor";
 import {
+  cardArtUrl,
   createLore,
   deleteLore,
   errorMessage,
-  fileUrl,
   getLoreById,
   isDungeonMaster,
   listPantheon,
@@ -15,6 +15,7 @@ import LoreCard from "../components/LoreCard";
 import LoreMarkdown from "../components/LoreMarkdown";
 import PantheonPicker from "../components/PantheonPicker";
 import YearField from "../components/YearField";
+import { tryMakeCardArt } from "../lib/cardArt";
 import {
   ATTRIBUTE_ORDER,
   ATTRIBUTES,
@@ -172,8 +173,15 @@ export default function DmEditor() {
     // An empty value clears the links; otherwise one value for each member.
     if (!draft.pantheon.length) data.append("pantheon", "");
     for (const memberId of draft.pantheon) data.append("pantheon", memberId);
-    if (coverFile) data.append("cover", coverFile);
-    else if (removeCover) data.append("cover", "");
+    if (coverFile) {
+      data.append("cover", coverFile);
+      // The small copy the cards load; the full image stays for this page.
+      const cardArt = await tryMakeCardArt(coverFile);
+      if (cardArt) data.append("card_art", cardArt);
+    } else if (removeCover) {
+      data.append("cover", "");
+      data.append("card_art", "");
+    }
 
     try {
       const saved = isNew ? await createLore(data) : await updateLore(id!, data);
@@ -210,7 +218,7 @@ export default function DmEditor() {
     );
   }
 
-  const existingCover = record?.cover && !removeCover ? fileUrl(record, record.cover, "480x0") : "";
+  const existingCover = record?.cover && !removeCover ? cardArtUrl(record, record.cover, record.card_art) : "";
   const previewLore = {
     ...draft,
     id: record?.id,

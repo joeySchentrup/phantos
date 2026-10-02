@@ -1,4 +1,4 @@
-import { fileUrl } from "~/backend/api";
+import { cardArtUrl } from "~/backend/api";
 import { heroTypeLine } from "~/lib/heroes";
 import { ATTRIBUTES, hashString, titleScale } from "~/lib/lore";
 import type { HeroSummary } from "~/types/hero";
@@ -10,7 +10,7 @@ type CardHero = Pick<
   HeroSummary,
   "name" | "player" | "species" | "class" | "attribute" | "summary" | "portrait" | "published"
 > &
-  Partial<Pick<HeroSummary, "id" | "collectionId" | "collectionName" | "slug">>;
+  Partial<Pick<HeroSummary, "id" | "collectionId" | "collectionName" | "slug" | "card_art">>;
 
 interface HeroCardProps {
   hero: CardHero;
@@ -18,29 +18,18 @@ interface HeroCardProps {
   to?: string;
   /** Overrides the stored portrait, e.g. an unsaved upload in the editor. */
   portraitUrl?: string;
-  /** Hint for the browser about how wide the card renders. */
-  imageSizes?: string;
   /** How many updates follow the backstory; printed like a monster's DEF. */
   updateCount?: number;
   className?: string;
 }
 
-function Portrait({ hero, portraitUrl, imageSizes }: Pick<HeroCardProps, "hero" | "portraitUrl" | "imageSizes">) {
-  const stored = !!(hero.portrait && hero.id && hero.collectionId);
-  const src = portraitUrl || (stored ? fileUrl(hero as Required<CardHero>, hero.portrait, "480x0") : "");
+function Portrait({ hero, portraitUrl }: Pick<HeroCardProps, "hero" | "portraitUrl">) {
+  const src = portraitUrl || cardArtUrl(hero, hero.portrait, hero.card_art);
 
   if (src) {
-    const large = !portraitUrl && stored ? fileUrl(hero as Required<CardHero>, hero.portrait, "1600x0") : "";
     return (
       <div className="ygo-card__art">
-        <img
-          src={src}
-          srcSet={large ? `${src} 480w, ${large} 1600w` : undefined}
-          sizes={imageSizes}
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
+        <img src={src} alt="" loading="lazy" decoding="async" />
       </div>
     );
   }
@@ -62,7 +51,7 @@ function Portrait({ hero, portraitUrl, imageSizes }: Pick<HeroCardProps, "hero" 
   );
 }
 
-export default function HeroCard({ hero, to, portraitUrl, imageSizes, updateCount, className = "" }: HeroCardProps) {
+export default function HeroCard({ hero, to, portraitUrl, updateCount, className = "" }: HeroCardProps) {
   return (
     <CardShell frame="hero" to={to} label={`${hero.name} — Hero`} draft={!hero.published} className={className}>
       <header className="ygo-card__name">
@@ -78,7 +67,7 @@ export default function HeroCard({ hero, to, portraitUrl, imageSizes, updateCoun
 
       {/* Heroes carry no level here; that stays on the character sheet. */}
       <CardLevel level={0} fallback="[HERO CARD]" />
-      <Portrait hero={hero} portraitUrl={portraitUrl} imageSizes={imageSizes} />
+      <Portrait hero={hero} portraitUrl={portraitUrl} />
 
       <div className="ygo-card__text">
         <p className="ygo-card__type">{heroTypeLine(hero)}</p>

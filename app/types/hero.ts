@@ -17,6 +17,8 @@ export interface HeroSummary {
   attribute: LoreAttribute;
   summary: string;
   portrait: string;
+  /** The small square copy of `portrait` the cards load; "" until one is made. */
+  card_art?: string;
   published: boolean;
   created: string;
 }

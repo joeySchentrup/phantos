@@ -15,15 +15,15 @@ const DM_COLLECTION = 'dungeon_masters';
 
 /** Everything a card needs. Bodies can run to 300 KB, so lists leave them out. */
 const SUMMARY_FIELDS =
-  'id,collectionId,collectionName,slug,title,category,attribute,author,summary,cover,word_count,published,year,circa,created';
+  'id,collectionId,collectionName,slug,title,category,attribute,author,summary,cover,card_art,word_count,published,year,circa,created';
 
 /** Everything a pantheon card needs; the document body stays behind. */
 const PANTHEON_FIELDS =
-  'id,collectionId,collectionName,slug,name,rank,attributes,domain,summary,image,published,created';
+  'id,collectionId,collectionName,slug,name,rank,attributes,domain,summary,image,card_art,published,created';
 
 /** Everything a hero card needs; the backstory stays behind. */
 const HERO_FIELDS =
-  'id,collectionId,collectionName,slug,name,player,species,class,subclass,background,alignment,faith,attribute,summary,portrait,published,created';
+  'id,collectionId,collectionName,slug,name,player,species,class,subclass,background,alignment,faith,attribute,summary,portrait,card_art,published,created';
 
 // ---------------------------------------------------------------------------
 // Lore
@@ -475,6 +475,71 @@ export function fileUrl(
 ): string {
   if (!filename) return '';
   return pb.files.getURL(record as any, filename, thumb ? { thumb } : undefined);
+}
+
+/**
+ * What a card shows: the record's card art when it has some, otherwise
+ * PocketBase's 480px thumbnail of the original — never the original itself.
+ */
+export function cardArtUrl(
+  record: { id?: string; collectionId?: string; collectionName?: string },
+  image: string,
+  cardArt?: string
+): string {
+  if (!image || !record.id || !record.collectionId) return '';
+  const stored = record as { id: string; collectionId: string };
+  return cardArt ? fileUrl(stored, cardArt) : fileUrl(stored, image, '480x0');
+}
+
+/** The image field each card-bearing collection keeps its original in. */
+export const CARD_IMAGE_FIELDS = { lore: 'cover', pantheon: 'image', heroes: 'portrait' } as const;
+
+export type CardCollection = keyof typeof CARD_IMAGE_FIELDS;
+
+export interface CardArtJob {
+  collection: CardCollection;
+  record: { id: string; collectionId: string; collectionName?: string };
+  /** What the DM desk calls it while it works. */
+  label: string;
+  /** The original's filename. */
+  image: string;
+}
+
+/**
+ * Every image whose card art is missing or isn't WebP yet (the upgrade
+ * migration's copies keep their original format). Drafts included.
+ */
+export async function listCardArtJobs(): Promise<CardArtJob[]> {
+  const jobs: CardArtJob[] = [];
+  for (const [collection, field] of Object.entries(CARD_IMAGE_FIELDS) as [CardCollection, string][]) {
+    const nameField = collection === 'lore' ? 'title' : 'name';
+    const records = await pb.collection(collection).getFullList<Record<string, string>>({
+      filter: `${field} != "" && (card_art = "" || card_art !~ ".webp")`,
+      fields: `id,collectionId,collectionName,${field},${nameField}`,
+      requestKey: null,
+    });
+    for (const record of records) {
+      jobs.push({
+        collection,
+        record: { id: record.id, collectionId: record.collectionId, collectionName: record.collectionName },
+        label: record[nameField],
+        image: record[field],
+      });
+    }
+  }
+  return jobs;
+}
+
+/** Stores a record's card art without touching anything else on it. */
+export async function saveCardArt(collection: CardCollection, id: string, file: File): Promise<void> {
+  try {
+    const data = new FormData();
+    data.append('card_art', file);
+    await pb.collection(collection).update(id, data, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving card art:', error);
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------

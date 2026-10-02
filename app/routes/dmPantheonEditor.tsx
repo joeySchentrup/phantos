@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/dmPantheonEditor";
 import {
+  cardArtUrl,
   createPantheon,
   deletePantheon,
   errorMessage,
-  fileUrl,
   getPantheonById,
   isDungeonMaster,
   updatePantheon,
 } from "../backend/api";
 import LoreMarkdown from "../components/LoreMarkdown";
 import PantheonCard from "../components/PantheonCard";
+import { tryMakeCardArt } from "../lib/cardArt";
 import { ATTRIBUTE_ORDER, ATTRIBUTES, autoSummary } from "../lib/lore";
 import { RANK_ORDER, RANKS } from "../lib/pantheon";
 import type { LoreAttribute } from "../types/lore";
@@ -133,8 +134,15 @@ export default function DmPantheonEditor() {
     data.append("summary", draft.summary.trim());
     data.append("content", draft.content);
     data.append("published", String(draft.published));
-    if (imageFile) data.append("image", imageFile);
-    else if (removeImage) data.append("image", "");
+    if (imageFile) {
+      data.append("image", imageFile);
+      // The small copy the cards load; the full image stays for this page.
+      const cardArt = await tryMakeCardArt(imageFile);
+      if (cardArt) data.append("card_art", cardArt);
+    } else if (removeImage) {
+      data.append("image", "");
+      data.append("card_art", "");
+    }
 
     try {
       const saved = isNew ? await createPantheon(data) : await updatePantheon(id!, data);
@@ -171,7 +179,7 @@ export default function DmPantheonEditor() {
     );
   }
 
-  const existingImage = record?.image && !removeImage ? fileUrl(record, record.image, "480x0") : "";
+  const existingImage = record?.image && !removeImage ? cardArtUrl(record, record.image, record.card_art) : "";
   const previewMember = {
     ...draft,
     attributes,

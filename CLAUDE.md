@@ -65,6 +65,7 @@ lore/                  # the original documents (seed source, copied into the im
   - Identity only — no stats (level included) or inventory. Same rules as lore: public reads published heroes, DMs write and see drafts.
 - `hero_updates`: hero (relation, cascade delete), title (optional), body (markdown, 4,000 characters at most). The running list beneath a hero's backstory, newest first.
   - Readable when the hero is published (or by a DM); only DMs write.
+- `card_art` (on `lore`, `pantheon` and `heroes`): a 720×720 square copy of the record's image (`cover` / `image` / `portrait`) that the cards load instead of the original. WebP when made in the browser; the backfill migration's copies keep the original's format until the DM desk re-makes them.
 - `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
 - `dungeon_masters`: auth collection for DMs. There is no public sign-up.
 
@@ -80,6 +81,7 @@ lore/                  # the original documents (seed source, copied into the im
 - On every hero update save: normalize line endings and trim the heading and body.
 - On every era save: trim the text, and refuse an era that ends before it begins.
 - On every point save: collapse the text to a single line.
+- On every lore, pantheon and hero save, `syncCardArt` drops `card_art` when the image changed (or went) without a new copy coming with it.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
 
 PocketBase runs each handler in an isolated runtime: handlers must `require(`${__hooks}/phantos/lib.js`)` rather than close over outer variables. On a brand-new database `onBootstrap` runs before migrations, which is why the first DM is created by a migration.
@@ -90,6 +92,8 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - Card internals are sized in `cqw` (container units). The card's outer element is the container, so never put `cqw` sizes on that element itself.
 - Category → frame colour and attribute → orb are defined once in `app/lib/lore.ts` and `app/app.css` (`[data-frame]`, `[data-attribute]`). Pantheon ranks are frames too, defined in `app/lib/pantheon.ts` and the same `[data-frame]` block.
 - `LoreCard`, `PantheonCard` and `HeroCard` all print onto `CardShell`, which owns the frame, the tilt and the foil. Change card behaviour there, not in one of them.
+- Cards get their picture from `cardArtUrl()` (card art, else the 480px thumbnail) and never a `srcset` of the original: at 2× density that picked the 1600px version and made the lists slow. Full pages use the 1600px thumbnail and link the original. Every editor that uploads an image must also send `card_art` from `tryMakeCardArt()` (`app/lib/cardArt.ts`); `CardArtPanel` on the DM desk fills in what's missing.
+- Changing a collection's fields through the local admin UI makes PocketBase write a migration file into `pb_migrations/`. Write schema changes as migrations by hand and don't commit generated ones.
 - Years are whole numbers: negative for BC, positive for AC (the Age of Concord). There is no year zero, so 0 always means "not set". Format and convert them with `app/lib/chronicle.ts`, never by hand.
 - The timeline's row heights are constants in `app/components/Timeline.tsx` that the `.tl-*` rules in `app/app.css` match. Change them together.
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).

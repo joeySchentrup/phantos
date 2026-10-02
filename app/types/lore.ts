@@ -16,6 +16,8 @@ export interface LoreSummary {
   author: string;
   summary: string;
   cover: string;
+  /** The small square copy of `cover` the cards load; "" until one is made. */
+  card_art?: string;
   word_count: number;
   published: boolean;
   /** In-universe year: negative for BC, positive for AC, 0 for undated. */

@@ -1,4 +1,4 @@
-import { fileUrl } from "~/backend/api";
+import { cardArtUrl } from "~/backend/api";
 import { ATTRIBUTES, hashString, titleScale } from "~/lib/lore";
 import { attributeLabels, pantheonTypeLine, RANKS } from "~/lib/pantheon";
 import type { PantheonRank, PantheonSummary } from "~/types/pantheon";
@@ -7,7 +7,7 @@ import CardShell, { CardLevel } from "./CardShell";
 import { Emblem, PATHS } from "./CategoryEmblem";
 
 type CardMember = Pick<PantheonSummary, "name" | "rank" | "attributes" | "domain" | "summary" | "image" | "published"> &
-  Partial<Pick<PantheonSummary, "id" | "collectionId" | "collectionName" | "slug">>;
+  Partial<Pick<PantheonSummary, "id" | "collectionId" | "collectionName" | "slug" | "card_art">>;
 
 interface PantheonCardProps {
   member: CardMember;
@@ -15,8 +15,6 @@ interface PantheonCardProps {
   to?: string;
   /** Overrides the stored portrait, e.g. an unsaved upload in the editor. */
   imageUrl?: string;
-  /** Hint for the browser about how wide the card renders. */
-  imageSizes?: string;
   /** How many lore entries refer to this member; printed like a monster's ATK. */
   loreCount?: number;
   className?: string;
@@ -45,22 +43,13 @@ const RANK_PATHS: Record<PantheonRank, React.ReactNode> = {
   other: <path d="M32 8l6 18 18 6-18 6-6 18-6-18-18-6 18-6z" />,
 };
 
-function Portrait({ member, imageUrl, imageSizes }: Pick<PantheonCardProps, "member" | "imageUrl" | "imageSizes">) {
-  const stored = !!(member.image && member.id && member.collectionId);
-  const src = imageUrl || (stored ? fileUrl(member as Required<CardMember>, member.image, "480x0") : "");
+function Portrait({ member, imageUrl }: Pick<PantheonCardProps, "member" | "imageUrl">) {
+  const src = imageUrl || cardArtUrl(member, member.image, member.card_art);
 
   if (src) {
-    const large = !imageUrl && stored ? fileUrl(member as Required<CardMember>, member.image, "1600x0") : "";
     return (
       <div className="ygo-card__art">
-        <img
-          src={src}
-          srcSet={large ? `${src} 480w, ${large} 1600w` : undefined}
-          sizes={imageSizes}
-          alt=""
-          loading="lazy"
-          decoding="async"
-        />
+        <img src={src} alt="" loading="lazy" decoding="async" />
       </div>
     );
   }
@@ -83,7 +72,7 @@ function Portrait({ member, imageUrl, imageSizes }: Pick<PantheonCardProps, "mem
   );
 }
 
-export default function PantheonCard({ member, to, imageUrl, imageSizes, loreCount, className = "" }: PantheonCardProps) {
+export default function PantheonCard({ member, to, imageUrl, loreCount, className = "" }: PantheonCardProps) {
   const rank = RANKS[member.rank] ?? RANKS.other;
   // Two orbs leave less of the name bar for the name.
   const comfortable = member.attributes.length > 1 ? 9 : 13;
@@ -110,7 +99,7 @@ export default function PantheonCard({ member, to, imageUrl, imageSizes, loreCou
       </header>
 
       <CardLevel level={rank.level} fallback={`[${rank.label.toUpperCase()}]`} />
-      <Portrait member={member} imageUrl={imageUrl} imageSizes={imageSizes} />
+      <Portrait member={member} imageUrl={imageUrl} />
 
       <div className="ygo-card__text">
         <p className="ygo-card__type">{pantheonTypeLine(member.rank, member.domain, member.attributes)}</p>

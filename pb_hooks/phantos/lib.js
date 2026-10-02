@@ -104,6 +104,32 @@ function autoSummary(markdown) {
 }
 
 // ---------------------------------------------------------------------------
+// Card art
+// ---------------------------------------------------------------------------
+
+/**
+ * `card_art` is a small copy of the record's image for the cards. The DM's
+ * editors send a new copy with every new image; when an image changes any
+ * other way (the admin UI, say), the old copy no longer matches it, so it is
+ * dropped and the DM desk makes a fresh one. No image, no card art.
+ */
+function syncCardArt(record, imageField) {
+  // A file uploaded with this request isn't a filename yet; it waits in the
+  // record's unsaved files until the save.
+  const newImage = record.getUnsavedFiles(imageField).length > 0;
+  const newArt = record.getUnsavedFiles('card_art').length > 0;
+
+  if (!newImage && !record.getString(imageField)) {
+    record.set('card_art', '');
+    return;
+  }
+  const original = record.original();
+  const imageChanged = newImage || original.getString(imageField) !== record.getString(imageField);
+  const artChanged = newArt || original.getString('card_art') !== record.getString('card_art');
+  if (imageChanged && !artChanged) record.set('card_art', '');
+}
+
+// ---------------------------------------------------------------------------
 // Lore record upkeep
 // ---------------------------------------------------------------------------
 
@@ -114,6 +140,7 @@ function autoSummary(markdown) {
 function prepareLore(app, record) {
   const content = normalizeNewlines(record.getString('content'));
   record.set('content', content);
+  syncCardArt(record, 'cover');
 
   const requested = slugify(record.getString('slug'));
   const base = requested || slugify(record.getString('title'));
@@ -136,6 +163,7 @@ function preparePantheon(app, record) {
   record.set('content', content);
   record.set('name', record.getString('name').trim());
   record.set('domain', record.getString('domain').trim());
+  syncCardArt(record, 'image');
 
   const requested = slugify(record.getString('slug'));
   const base = requested || slugify(record.getString('name'));
@@ -159,6 +187,7 @@ function prepareHero(app, record) {
   for (let i = 0; i < HERO_TEXT_FIELDS.length; i++) {
     record.set(HERO_TEXT_FIELDS[i], record.getString(HERO_TEXT_FIELDS[i]).trim());
   }
+  syncCardArt(record, 'portrait');
 
   const requested = slugify(record.getString('slug'));
   const base = requested || slugify(record.getString('name'));
@@ -309,6 +338,7 @@ function search(query, category, includeDrafts, limit) {
       author: r.getString('author'),
       summary: r.getString('summary'),
       cover: r.getString('cover'),
+      card_art: r.getString('card_art'),
       word_count: r.getInt('word_count'),
       published: r.getBool('published'),
       year: r.getInt('year'),

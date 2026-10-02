@@ -15,6 +15,8 @@ export interface PantheonSummary {
   domain: string;
   summary: string;
   image: string;
+  /** The small square copy of `image` the cards load; "" until one is made. */
+  card_art?: string;
   published: boolean;
   created: string;
 }

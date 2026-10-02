@@ -7,6 +7,7 @@ A website supporting the Phantos universe: a searchable archive of the campaign'
 - **Pantheon.** The powers of Phanatos at `/pantheon`, laid out like the archive: searchable, filtered by rank, one card each. A member's page ends with the cards of every lore entry that refers to them, and every lore entry ends with the members it names.
 - **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
 - **Heroes.** The party at `/heroes`, one card each, searchable. A hero's page holds who they are (player, species, class, background, alignment, faith; no stats or inventory), their backstory, and beneath it a running list of updates, newest first.
+- **Fast card images.** Cards load a small square copy of each image ("card art", 720×720 WebP), not the original, so the lists stay quick; a lore entry's, member's or hero's own page still shows the full image. See [Card art](#card-art).
 - **Featured image.** The hero at the top of the home page. The DM uploads it, with an optional caption, from the DM desk.
 - **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle, and pick the pantheon members it refers to. Add pantheon members of your own, with a portrait, from the Pantheon page. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters). Add heroes and edit their backstories from the Heroes page; post, edit and delete a hero's updates on the hero's own page.
 - **Coming soon.** Atlas is linked from the top navigation as a face-down card.
@@ -54,11 +55,23 @@ docker run -d -p 8080:8080 \
 
 - **Mount a volume at `/pb/pb_data`.** The database and every uploaded image live there.
 - **First start.** The migrations create the collections and seed the archive from the lore files baked into the image (`/pb/lore`). This runs once. Later DM edits are never overwritten.
-- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links). The Heroes migrations create the heroes and their updates, and seed Daymond Greystone (skipped if his URL name is taken).
+- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links). The Heroes migrations create the heroes and their updates, and seed Daymond Greystone (skipped if his URL name is taken). The card art migrations add the `card_art` field and make a card copy of every existing image, so the lists are fast as soon as the new version starts.
 - **`DM_EMAIL` / `DM_PASSWORD`** create the first Dungeon Master if that account doesn't exist yet. You can also add DMs from the admin UI at `/_/` under **dungeon_masters**. There is no public sign-up.
 - **Pantheon.** The powers of Phanatos at `/pantheon`, laid out like the archive: searchable, filtered by rank, one card each. A member's page ends with the cards of every lore entry that refers to them, and every lore entry ends with the members it names.
 - **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
 - **Featured image.** Until the DM uploads one, the home page shows the six dragons instead.
+
+## Card art
+
+Cards are drawn about 300px wide, but the images behind them can be 4,000px photos or multi-megabyte PNGs, and even PocketBase's thumbnails of a PNG are PNGs. So each lore entry, pantheon member and hero keeps two images: the original (shown on its own page) and `card_art`, a 720×720 copy cropped to the card's square picture box. Cards only ever load the copy, or a 480px thumbnail while there isn't one.
+
+Card copies are made three ways:
+
+- **When an image is uploaded** through the site's editors, the DM's browser makes a WebP copy and saves it with the image.
+- **On upgrade**, a migration makes a copy of every existing image with PocketBase's own resizer. It can't write WebP, so a JPEG gets a JPEG copy and a PNG a PNG copy.
+- **On the DM desk**, a Card Art panel runs by itself whenever a DM opens the desk. It makes a WebP copy of any image still without one, and replaces the migration's JPEG/PNG copies with WebP. This also catches images uploaded through the admin UI at `/_/`.
+
+If an image is replaced without a new copy (through `/_/`, say), the server drops the out-of-date copy and the desk makes a new one. The four seeded maps went from 6.7 MB to 292 KB of card images on a high-density screen.
 
 ## Heroes
 
@@ -108,7 +121,7 @@ A member's rank is its card frame, and its stars follow its rank:
 
 A member has one element, or two if it is a child of two (the Greater Dragons); both orbs show on the card.
 
-The 24 seeded members are written from the lore documents ([`1790899201_seed_pantheon.js`](pb_migrations/1790899201_seed_pantheon.js)). Each Primal Dragon takes its portrait from the card art of its recollection, if that entry has any when the migration runs. The seeded lore is linked to every member it names ([`1790899202_link_lore_to_pantheon.js`](pb_migrations/1790899202_link_lore_to_pantheon.js)).
+The 24 seeded members are written from the lore documents ([`1790899201_seed_pantheon.js`](pb_migrations/1790899201_seed_pantheon.js)). Each Primal Dragon takes its portrait from the image of its recollection, if that entry has one when the migration runs. The seeded lore is linked to every member it names ([`1790899202_link_lore_to_pantheon.js`](pb_migrations/1790899202_link_lore_to_pantheon.js)).
 
 ## Dates
 

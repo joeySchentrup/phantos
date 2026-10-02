@@ -91,7 +91,7 @@ function TipLayer({ tip }: { tip: Tip }) {
     return (
       <div className="tl-tip" style={{ ...style, width }} role="presentation">
         <p className="tl-tip__date">{formatYear(tip.lore.year, tip.lore.circa)}</p>
-        <LoreCard lore={tip.lore} imageSizes={`${CARD_WIDTH}px`} />
+        <LoreCard lore={tip.lore} />
       </div>
     );
   }
