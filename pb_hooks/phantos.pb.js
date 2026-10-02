@@ -61,6 +61,30 @@ onRecordUpdate((e) => {
 }, 'hero_updates');
 
 // ---------------------------------------------------------------------------
+// Electrum: accounts and shop items keep tidy names
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareElectrumAccount(e.record);
+  e.next();
+}, 'electrum_accounts');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareElectrumAccount(e.record);
+  e.next();
+}, 'electrum_accounts');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareShopItem(e.record);
+  e.next();
+}, 'electrum_shop');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareShopItem(e.record);
+  e.next();
+}, 'electrum_shop');
+
+// ---------------------------------------------------------------------------
 // Chronicle: eras run forwards, points are a single line
 // ---------------------------------------------------------------------------
 

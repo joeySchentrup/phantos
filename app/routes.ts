@@ -10,6 +10,8 @@ export default [
   route("/pantheon/:slug", "routes/pantheonEntry.tsx"),
   route("/heroes", "routes/heroes.tsx"),
   route("/heroes/:slug", "routes/heroEntry.tsx"),
+  // Reached from a hero's page; deliberately not one of the SECTIONS in the top bar.
+  route("/electrum", "routes/electrum.tsx"),
 
   route("/dm", "routes/dm.tsx"),
   route("/dm/lore/new", "routes/dmEditor.tsx", { id: "dm-lore-new" }),

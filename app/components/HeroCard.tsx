@@ -1,4 +1,5 @@
 import { cardArtUrl } from "~/backend/api";
+import { electrumStars, MAX_STARS } from "~/lib/electrum";
 import { heroTypeLine } from "~/lib/heroes";
 import { ATTRIBUTES, hashString, titleScale } from "~/lib/lore";
 import type { HeroSummary } from "~/types/hero";
@@ -20,6 +21,8 @@ interface HeroCardProps {
   portraitUrl?: string;
   /** How many updates follow the backstory; printed like a monster's DEF. */
   updateCount?: number;
+  /** The electrum the hero holds; it sets the stars. */
+  electrum?: number;
   className?: string;
 }
 
@@ -51,7 +54,9 @@ function Portrait({ hero, portraitUrl }: Pick<HeroCardProps, "hero" | "portraitU
   );
 }
 
-export default function HeroCard({ hero, to, portraitUrl, updateCount, className = "" }: HeroCardProps) {
+export default function HeroCard({ hero, to, portraitUrl, updateCount, electrum = 0, className = "" }: HeroCardProps) {
+  const stars = electrumStars(electrum);
+
   return (
     <CardShell frame="hero" to={to} label={`${hero.name} — Hero`} draft={!hero.published} className={className}>
       <header className="ygo-card__name">
@@ -65,8 +70,8 @@ export default function HeroCard({ hero, to, portraitUrl, updateCount, className
         <AttributeOrb attribute={hero.attribute} />
       </header>
 
-      {/* Heroes carry no level here; that stays on the character sheet. */}
-      <CardLevel level={0} fallback="[HERO CARD]" />
+      {/* A hero's stars are their electrum. Their level stays on the character sheet. */}
+      <CardLevel level={stars} fallback="[HERO CARD]" label={`${stars} of ${MAX_STARS} stars for electrum`} />
       <Portrait hero={hero} portraitUrl={portraitUrl} />
 
       <div className="ygo-card__text">

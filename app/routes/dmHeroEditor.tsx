@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import type { Route } from "./+types/dmHeroEditor";
 import {
   cardArtUrl,
@@ -8,12 +8,16 @@ import {
   errorMessage,
   getHeroById,
   isDungeonMaster,
+  listElectrumAccounts,
+  saveElectrumAccount,
   updateHero,
 } from "../backend/api";
 import HeroCard from "../components/HeroCard";
 import LoreMarkdown from "../components/LoreMarkdown";
 import { tryMakeCardArt } from "../lib/cardArt";
-import { ATTRIBUTE_ORDER, ATTRIBUTES, autoSummary } from "../lib/lore";
+import { accountForPlayer, ELECTRUM_FOR_ALL_STARS, MAX_STARS, parseElectrum } from "../lib/electrum";
+import { ATTRIBUTE_ORDER, ATTRIBUTES, autoSummary, formatNumber } from "../lib/lore";
+import type { ElectrumAccount, ElectrumAccountInput } from "../types/electrum";
 import type { Hero } from "../types/hero";
 import type { LoreAttribute } from "../types/lore";
 
@@ -65,6 +69,9 @@ const EMPTY: Draft = {
   published: true,
 };
 
+/** The choice that opens an account instead of attaching one. */
+const NEW_ACCOUNT = "new";
+
 /** The short identity fields, two to a row. */
 const IDENTITY: { key: keyof Draft; label: string; placeholder: string; max: number }[] = [
   { key: "player", label: "Player", placeholder: "Who plays them", max: 120 },
@@ -78,6 +85,7 @@ const IDENTITY: { key: keyof Draft; label: string; placeholder: string; max: num
 export default function DmHeroEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isNew = !id;
 
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -87,14 +95,31 @@ export default function DmHeroEditor() {
   const [tab, setTab] = useState<"write" | "preview">("write");
   const [status, setStatus] = useState<"loading" | "ready" | "missing">(isNew ? "ready" : "loading");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  // A new hero whose electrum failed to save arrives here with the reason.
+  const [error, setError] = useState<string>(location.state?.error ?? "");
   const [dirty, setDirty] = useState(false);
+  /** The whole ledger; null if it couldn't be read. */
+  const [accounts, setAccounts] = useState<ElectrumAccount[] | null>(null);
+  /** The account and amount the DM has chosen; null until they touch either. */
+  const [choice, setChoice] = useState<{ account: string; amount: string } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   // Only DMs belong here.
   useEffect(() => {
     if (!isDungeonMaster()) navigate("/dm", { replace: true });
   }, [navigate]);
+
+  // Without the ledger the hero can still be saved; the electrum fields just stay away.
+  const loadAccounts = useCallback(() => {
+    setChoice(null);
+    listElectrumAccounts()
+      .then(setAccounts)
+      .catch(() => setAccounts(null));
+  }, []);
+
+  useEffect(() => {
+    loadAccounts();
+  }, [id, loadAccounts]);
 
   useEffect(() => {
     if (isNew) {
@@ -150,6 +175,35 @@ export default function DmHeroEditor() {
     setDirty(true);
   };
 
+  // Until the DM chooses, the hero keeps the account they have; a new hero is
+  // offered the unattached account in their player's name, or else a new one.
+  const heldAccount = record ? accounts?.find((account) => account.hero === record.id) : undefined;
+  const unattached = accounts?.filter((account) => !account.hero) ?? [];
+  const accountId = choice ? choice.account : (heldAccount ?? accountForPlayer(unattached, draft.player))?.id ?? NEW_ACCOUNT;
+  const account = accounts?.find((candidate) => candidate.id === accountId);
+  const electrumText = choice ? choice.amount : String(account?.amount ?? 0);
+  const electrum = parseElectrum(electrumText);
+
+  const choose = (next: { account: string; amount: string }) => {
+    setChoice(next);
+    setDirty(true);
+  };
+
+  /** Ties the chosen account to the saved hero, opening it first if it is a new one. */
+  const saveElectrum = async (hero: Hero) => {
+    if (!accounts) return;
+    if (heldAccount && heldAccount.id !== accountId) await saveElectrumAccount({ hero: "" }, heldAccount.id);
+    if (!account) {
+      await saveElectrumAccount({ name: hero.player || hero.name, amount: electrum, spent: 0, hero: hero.id });
+      return;
+    }
+    // Only what changed is sent, so an amount adjusted on the ledger meanwhile isn't put back.
+    const changes: Partial<ElectrumAccountInput> = {};
+    if (account.hero !== hero.id) changes.hero = hero.id;
+    if (electrum !== account.amount) changes.amount = electrum;
+    if (Object.keys(changes).length) await saveElectrumAccount(changes, account.id);
+  };
+
   const onImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -181,13 +235,26 @@ export default function DmHeroEditor() {
       data.append("card_art", "");
     }
 
+    let saved: Hero;
     try {
-      const saved = isNew ? await createHero(data) : await updateHero(id!, data);
-      setDirty(false);
-      navigate(`/heroes/${saved.slug}`);
+      saved = isNew ? await createHero(data) : await updateHero(id!, data);
     } catch (err) {
       setError(errorMessage(err, "The hero could not be saved."));
       setSaving(false);
+      return;
+    }
+
+    try {
+      await saveElectrum(saved);
+      setDirty(false);
+      navigate(`/heroes/${saved.slug}`);
+    } catch (err) {
+      // The hero is in; stay on their editor so saving again doesn't add them twice.
+      const message = `The hero was saved, but their electrum was not. ${errorMessage(err, "Please try again.")}`;
+      setError(message);
+      setSaving(false);
+      if (isNew) navigate(`/dm/heroes/${saved.id}`, { replace: true, state: { error: message } });
+      else loadAccounts();
     }
   };
 
@@ -319,6 +386,55 @@ export default function DmHeroEditor() {
                 </select>
               </div>
             </div>
+
+            {accounts && (
+              <div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="hero-account" className="field-label">
+                      Electrum account
+                    </label>
+                    <select
+                      id="hero-account"
+                      value={accountId}
+                      onChange={(e) => {
+                        const chosen = accounts.find((candidate) => candidate.id === e.target.value);
+                        choose({ account: e.target.value, amount: String(chosen?.amount ?? 0) });
+                      }}
+                      className="field"
+                    >
+                      {heldAccount && <option value={heldAccount.id}>{heldAccount.name} (theirs now)</option>}
+                      {unattached.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.name} — {formatNumber(candidate.amount)} held, no hero yet
+                        </option>
+                      ))}
+                      <option value={NEW_ACCOUNT}>Open a new account</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="hero-electrum" className="field-label">
+                      Electrum held
+                    </label>
+                    <input
+                      id="hero-electrum"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      step={1}
+                      value={electrumText}
+                      onChange={(e) => choose({ account: accountId, amount: e.target.value })}
+                      className="field"
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-[#c9b78f]">
+                  {unattached.length > 0 && "An account with no hero yet can be given to this one. "}
+                  Electrum sets the card's stars: one for any electrum at all, all {MAX_STARS} at{" "}
+                  {formatNumber(ELECTRUM_FOR_ALL_STARS)}. Award and spend it on the <Link to="/electrum" className="underline underline-offset-2 hover:text-[#f4e6c3]">ledger</Link>.
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="hero-slug" className="field-label">
@@ -469,7 +585,7 @@ export default function DmHeroEditor() {
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <p className="field-label text-center">Card preview</p>
             <div className="mx-auto max-w-[16rem] lg:max-w-none">
-              <HeroCard hero={previewHero} portraitUrl={portraitPreview || existingPortrait || undefined} />
+              <HeroCard hero={previewHero} portraitUrl={portraitPreview || existingPortrait || undefined} electrum={electrum} />
             </div>
           </aside>
         </form>

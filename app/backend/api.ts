@@ -2,6 +2,7 @@ import type { ListResult } from 'pocketbase';
 import { DEFAULT_CHART_SLUG } from '../lib/atlas';
 import type { Chart, Feature, FeatureInput, Place, PlaceInput, Realm, RealmInput } from '../types/atlas';
 import type { Era, EraInput, TimelinePoint, TimelinePointInput } from '../types/chronicle';
+import type { ElectrumAccount, ElectrumAccountInput, LevelCost, ShopItem, ShopItemInput } from '../types/electrum';
 import type {
   FeaturedImage,
   LoreCategory,
@@ -329,7 +330,7 @@ export async function updateHero(id: string, data: FormData): Promise<Hero> {
   }
 }
 
-/** Deletes the hero; their updates go with them. */
+/** Deletes the hero; their updates go with them, and their electrum is left without a hero. */
 export async function deleteHero(id: string): Promise<void> {
   try {
     await pb.collection('heroes').delete(id);
@@ -383,6 +384,129 @@ export async function deleteHeroUpdate(id: string): Promise<void> {
     await pb.collection('hero_updates').delete(id);
   } catch (error) {
     console.error('Error deleting the hero update:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Electrum
+// ---------------------------------------------------------------------------
+
+/** An account with the card of its hero, when the visitor may see them. */
+const ACCOUNT_QUERY = {
+  expand: 'hero',
+  fields: '*,' + HERO_FIELDS.split(',').map((field) => `expand.hero.${field}`).join(','),
+};
+
+/** The whole ledger, by name: every account, with or without a hero. */
+export async function listElectrumAccounts(): Promise<ElectrumAccount[]> {
+  try {
+    return await pb.collection('electrum_accounts').getFullList<ElectrumAccount>({ sort: 'name,created', ...ACCOUNT_QUERY, requestKey: null });
+  } catch (error) {
+    console.error('Error listing electrum accounts:', error);
+    throw error;
+  }
+}
+
+/** A hero's account, or null when they have none. */
+export async function getElectrumForHero(heroId: string): Promise<ElectrumAccount | null> {
+  try {
+    const result = await pb.collection('electrum_accounts').getList<ElectrumAccount>(1, 1, {
+      filter: pb.filter('hero = {:hero}', { hero: heroId }),
+      skipTotal: true,
+      requestKey: null,
+    });
+    return result.items[0] ?? null;
+  } catch (error) {
+    console.error('Error fetching the electrum account:', error);
+    throw error;
+  }
+}
+
+/** How much electrum each hero holds, by hero id. */
+export async function electrumByHero(): Promise<Record<string, number>> {
+  try {
+    const records = await pb.collection('electrum_accounts').getFullList<{ hero: string; amount: number }>({
+      filter: 'hero != ""',
+      fields: 'hero,amount',
+      requestKey: null,
+    });
+    const amounts: Record<string, number> = {};
+    for (const record of records) amounts[record.hero] = record.amount;
+    return amounts;
+  } catch (error) {
+    console.error('Error listing electrum by hero:', error);
+    throw error;
+  }
+}
+
+/** Opens the account, or changes only the given fields of it when `id` is given. */
+export async function saveElectrumAccount(data: Partial<ElectrumAccountInput>, id?: string): Promise<ElectrumAccount> {
+  const options = { ...ACCOUNT_QUERY, requestKey: null };
+  try {
+    return id
+      ? await pb.collection('electrum_accounts').update<ElectrumAccount>(id, data, options)
+      : await pb.collection('electrum_accounts').create<ElectrumAccount>(data, options);
+  } catch (error) {
+    console.error('Error saving the electrum account:', error);
+    throw error;
+  }
+}
+
+/**
+ * Adds to what an account holds, or takes from it when `change` is negative.
+ * Electrum taken as `spent` is counted in the account's spending too. The
+ * server does the sum, so two DMs adjusting at once both count.
+ */
+export async function adjustElectrum(id: string, change: number, spent = false): Promise<ElectrumAccount> {
+  const body: Record<string, number> = change >= 0 ? { 'amount+': change } : { 'amount-': -change };
+  if (change < 0 && spent) body['spent+'] = -change;
+  try {
+    return await pb.collection('electrum_accounts').update<ElectrumAccount>(id, body, { ...ACCOUNT_QUERY, requestKey: null });
+  } catch (error) {
+    console.error('Error adjusting the electrum account:', error);
+    throw error;
+  }
+}
+
+/** The shop, cheapest first. */
+export async function listShopItems(): Promise<ShopItem[]> {
+  try {
+    return await pb.collection('electrum_shop').getFullList<ShopItem>({ sort: 'price,name', requestKey: null });
+  } catch (error) {
+    console.error('Error listing the electrum shop:', error);
+    throw error;
+  }
+}
+
+/** Creates the shop item, or updates it when `id` is given. */
+export async function saveShopItem(data: ShopItemInput, id?: string): Promise<ShopItem> {
+  const body = { name: data.name, price: data.price, description: data.description };
+  try {
+    return id
+      ? await pb.collection('electrum_shop').update<ShopItem>(id, body, { requestKey: null })
+      : await pb.collection('electrum_shop').create<ShopItem>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the shop item:', error);
+    throw error;
+  }
+}
+
+export async function deleteShopItem(id: string): Promise<void> {
+  try {
+    await pb.collection('electrum_shop').delete(id);
+  } catch (error) {
+    console.error('Error deleting the shop item:', error);
+    throw error;
+  }
+}
+
+/** What each level costs to reach, lowest level first. */
+export async function listLevelCosts(): Promise<LevelCost[]> {
+  try {
+    return await pb.collection('electrum_levels').getFullList<LevelCost>({ sort: 'level', requestKey: null });
+  } catch (error) {
+    console.error('Error listing level up costs:', error);
     throw error;
   }
 }

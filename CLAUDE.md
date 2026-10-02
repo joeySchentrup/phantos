@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, and follow the party in Heroes. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, post updates to a hero's page, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, and see what each hero holds in Electrum. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, post updates to a hero's page, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -29,24 +29,27 @@ npm run build      # Production SPA to build/client
 ```
 app/
 ├── routes/            # home, lore (archive + search), loreEntry, pantheon, pantheonEntry, chronicle, atlas,
-│                      #   heroes, heroEntry, dm, dmEditor, dmPantheonEditor, dmHeroEditor,
+│                      #   heroes, heroEntry, electrum (routed, but not a section in the top bar),
+│                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor,
 │                      #   comingSoon (not routed; the face-down page for a section still to be built)
 ├── backend/
 │   ├── api.ts         # ALL PocketBase calls — touch this for data changes
 │   └── pocketbaseClient.ts
 ├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, PantheonPicker, PantheonPlates, Timeline,
-│                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader, …
+│                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader,
+│                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator, …
 ├── lib/
 │   ├── lore.ts        # categories/attributes, levels, title + snippet helpers
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
 │   ├── heroes.ts      # type line, epithet, class label
+│   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools
 │   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
-└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, atlas.ts
-pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes and atlas schema + seeds
-pb_hooks/              # search route, slug/word-count/summary hooks, chronicle and atlas checks, first-DM bootstrap
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts
+pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds
+pb_hooks/              # search route, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
 ```
 
@@ -67,6 +70,13 @@ lore/                  # the original documents (seed source, copied into the im
   - Identity only — no stats (level included) or inventory. Same rules as lore: public reads published heroes, DMs write and see drafts.
 - `hero_updates`: hero (relation, cascade delete), title (optional), body (markdown, 4,000 characters at most). The running list beneath a hero's backstory, newest first.
   - Readable when the hero is published (or by a DM); only DMs write.
+- `electrum_accounts`: name, amount, spent, hero (relation, at most one account a hero)
+  - The ledger. `name` is the player; `amount` is what is held, `spent` what has been spent, both whole and never negative.
+  - An account with no `hero` waits for one: the hero editor offers it to a new hero. Deleting a hero empties `hero` and keeps the account.
+  - A hero's stars come from `amount` (`electrumStars()` in `app/lib/electrum.ts`): 12 at 10,000, scaling down linearly and never rounded up, except that any electrum at all is worth the first star.
+- `electrum_shop`: name, price, description. Every price is a flat whole number of electrum, 1 at least.
+- `electrum_levels`: level, cost. What reaching each level costs: the one price that isn't flat, so it is precalculated and seeded (40 + 10 × l × (l − 1)), never computed on the site.
+  - Anyone can read all three electrum collections. Only DMs write.
 - `card_art` (on `lore`, `pantheon` and `heroes`): a 720×720 square copy of the record's image (`cover` / `image` / `portrait`) that the cards load instead of the original. WebP when made in the browser; the backfill migration's copies keep the original's format until the DM desk re-makes them.
 - `charts`: name, slug, dateline, description, width, height, land (json: closed coastlines), land_centre, compass, seas (json: `{ name, x, y, size }`), underlay, published
   - One sheet of the Atlas. Positions on it are chart units: whole numbers from 0 to `width` and `height`; a point is `[x, y]`.
@@ -92,6 +102,7 @@ lore/                  # the original documents (seed source, copied into the im
 - On every pantheon save: normalize line endings, make a unique slug, and fill a blank `summary`.
 - On every hero save: normalize the backstory's line endings, trim the identity fields, make a unique slug, and fill a blank `summary`.
 - On every hero update save: normalize line endings and trim the heading and body.
+- On every electrum account and shop item save: collapse the name (and an item's description) to a single line.
 - On every era save: trim the text, and refuse an era that ends before it begins.
 - On every point save: collapse the text to a single line.
 - On every chart save: trim the text, make a unique slug, and default the size to 1400 × 700.
@@ -110,6 +121,7 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - Cards get their picture from `cardArtUrl()` (card art, else the 480px thumbnail) and never a `srcset` of the original: at 2× density that picked the 1600px version and made the lists slow. Full pages use the 1600px thumbnail and link the original. Every editor that uploads an image must also send `card_art` from `tryMakeCardArt()` (`app/lib/cardArt.ts`); `CardArtPanel` on the DM desk fills in what's missing.
 - Changing a collection's fields through the local admin UI makes PocketBase write a migration file into `pb_migrations/`. Write schema changes as migrations by hand and don't commit generated ones.
 - Years are whole numbers: negative for BC, positive for AC (the Age of Concord). There is no year zero, so 0 always means "not set". Format and convert them with `app/lib/chronicle.ts`, never by hand.
+- Electrum is awarded and spent with `adjustElectrum()`, which sends PocketBase's `amount+` / `amount-` modifiers so the server does the sum. Only an outright correction writes `amount` itself.
 - The timeline's row heights are constants in `app/components/Timeline.tsx` that the `.tl-*` rules in `app/app.css` match. Change them together.
 - The Atlas positions everything by percentages of one box (`.atlas-sheet`), which carries the pan and zoom as a single transform. Names, pins, handles and stroke widths are scaled back by `1/z` so they hold their size; put that counter-scale on a wrapper, never on the pin itself, or it loses its hover scale.
 - Chart geometry and the view maths live in `app/lib/atlas.ts` as pure functions with tests. `AtlasChart` owns only the view, the hover and the gesture in progress; `routes/atlas.tsx` owns the records, the tool and the selection, and saves a drag once, when it ends.
@@ -120,4 +132,4 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM), and the DM editors at desktop and phone widths.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths.

@@ -1384,6 +1384,67 @@
     background: var(--era);
   }
 
+  /* ---------------------------------------------------------------------- */
+  /* Electrum: the one cold metal in a gilded room                           */
+  /* ---------------------------------------------------------------------- */
+
+  .electrum-coin {
+    filter: drop-shadow(0 1px 2px rgba(2, 14, 40, 0.6));
+  }
+  .electrum-coin__rim {
+    fill: #c4e8ff;
+    stroke: #0d2f63;
+    stroke-width: 1;
+  }
+  .electrum-coin__face {
+    fill: #9fd4f7;
+    stroke: #3b82c8;
+    stroke-width: 0.8;
+  }
+  .electrum-coin__mark {
+    fill: none;
+    stroke: #0d2f63;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* A polished plate: on a hero's page it is the link to the ledger. */
+  .electrum-banner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border: 1px solid;
+    border-color: #cfeeff #2c6fb8 #123f7c #9fd6fa;
+    padding: 0.85rem 1.1rem;
+    color: #f3fbff;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 48%, rgba(2, 16, 48, 0.3)),
+      linear-gradient(115deg, #0f3472 0%, #1a5fb4 30%, #2a7fd4 52%, #1a5fb4 74%, #0c2a5e 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 30px rgba(18, 84, 170, 0.35);
+    text-shadow: 0 1px 2px rgba(3, 18, 50, 0.7);
+    transition: transform 140ms ease, box-shadow 180ms ease, filter 180ms ease;
+  }
+  /* The light that crosses it now and then. */
+  .electrum-banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+    transform: translateX(-110%);
+    animation: electrum-sheen 6s ease-in-out infinite;
+  }
+  a.electrum-banner:hover,
+  a.electrum-banner:focus-visible {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), 0 14px 36px rgba(40, 130, 230, 0.45);
+  }
+
   /* Search hit highlight */
   mark.hit {
     background: rgba(242, 193, 78, 0.38);
@@ -1404,6 +1465,11 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes electrum-sheen {
+  0%, 55% { transform: translateX(-110%); }
+  100% { transform: translateX(110%); }
 }
 
 @keyframes shimmer {
@@ -1431,8 +1497,16 @@
   .atlas-name,
   .atlas-pin,
   .atlas-handle,
+  .electrum-banner,
   .btn {
     transition: none;
+  }
+  .electrum-banner::after {
+    animation: none;
+  }
+  a.electrum-banner:hover,
+  a.electrum-banner:focus-visible {
+    transform: none;
   }
   .ygo-card__body {
     transform: none !important;

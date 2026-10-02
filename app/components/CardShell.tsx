@@ -65,8 +65,11 @@ export default function CardShell({ frame, to, label, draft, className = "", chi
   );
 }
 
-/** A row of level stars, or a plain label for a card that has no level. */
-export function CardLevel({ level, fallback }: { level: number; fallback: string }) {
+/**
+ * A row of level stars, or a plain label for a card that has no level.
+ * `label` says what the stars count when it isn't a level.
+ */
+export function CardLevel({ level, fallback, label }: { level: number; fallback: string; label?: string }) {
   if (!level) {
     return (
       <div className="ygo-card__level">
@@ -75,7 +78,7 @@ export function CardLevel({ level, fallback }: { level: number; fallback: string
     );
   }
   return (
-    <div className="ygo-card__level" role="img" aria-label={`Level ${level}`}>
+    <div className="ygo-card__level" role="img" aria-label={label ?? `Level ${level}`}>
       {Array.from({ length: level }, (_, i) => (
         <span key={i} className="level-star" aria-hidden="true">
           ★

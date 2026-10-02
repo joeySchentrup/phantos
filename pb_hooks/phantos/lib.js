@@ -205,6 +205,21 @@ function prepareHeroUpdate(record) {
 }
 
 // ---------------------------------------------------------------------------
+// Electrum record upkeep
+// ---------------------------------------------------------------------------
+
+/** An account is named on one line. Its amounts are whole and never negative; the fields see to that. */
+function prepareElectrumAccount(record) {
+  record.set('name', record.getString('name').replace(/\s+/g, ' ').trim());
+}
+
+/** A shop item's name and description are a line each. */
+function prepareShopItem(record) {
+  record.set('name', record.getString('name').replace(/\s+/g, ' ').trim());
+  record.set('description', record.getString('description').replace(/\s+/g, ' ').trim());
+}
+
+// ---------------------------------------------------------------------------
 // Chronicle record upkeep
 // ---------------------------------------------------------------------------
 
@@ -510,6 +525,8 @@ module.exports = {
   preparePantheon: preparePantheon,
   prepareHero: prepareHero,
   prepareHeroUpdate: prepareHeroUpdate,
+  prepareElectrumAccount: prepareElectrumAccount,
+  prepareShopItem: prepareShopItem,
   prepareEra: prepareEra,
   preparePoint: preparePoint,
   prepareChart: prepareChart,
