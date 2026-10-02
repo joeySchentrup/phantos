@@ -1,9 +1,11 @@
-import { Link, useLocation } from "react-router";
-import type { Route } from "./+types/comingSoon";
+import { Link, useLocation, type MetaArgs } from "react-router";
 import CardBack from "../components/CardBack";
 import { sectionFor } from "../lib/sections";
 
-export function meta({ location }: Route.MetaArgs) {
+// The face-down page for a section that hasn't been built. No section needs it
+// at the moment; to use it, mark the section `live: false` in lib/sections.ts
+// and route its path here in routes.ts.
+export function meta({ location }: MetaArgs) {
   const section = sectionFor(location.pathname);
   return [
     { title: `${section?.label ?? "Coming soon"} — Phantos` },

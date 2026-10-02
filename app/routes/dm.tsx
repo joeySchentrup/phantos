@@ -364,6 +364,9 @@ export default function DungeonMaster() {
           <Link to="/chronicle#desk" className="btn btn-ghost" title="Add eras and points to the timeline">
             Chronicle
           </Link>
+          <Link to="/atlas#desk" className="btn btn-ghost" title="Keep the Atlas: add places, realms and terrain to the chart">
+            Atlas
+          </Link>
           <button type="button" onClick={signOutDungeonMaster} className="btn btn-ghost">
             Sign out
           </button>

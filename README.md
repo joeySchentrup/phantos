@@ -9,8 +9,8 @@ A website supporting the Phantos universe: a searchable archive of the campaign'
 - **Heroes.** The party at `/heroes`, one card each, searchable. A hero's page holds who they are (player, species, class, background, alignment, faith; no stats or inventory), their backstory, and beneath it a running list of updates, newest first.
 - **Fast card images.** Cards load a small square copy of each image ("card art", 720×720 WebP), not the original, so the lists stay quick; a lore entry's, member's or hero's own page still shows the full image. See [Card art](#card-art).
 - **Featured image.** The hero at the top of the home page. The DM uploads it, with an optional caption, from the DM desk.
-- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle, and pick the pantheon members it refers to. Add pantheon members of your own, with a portrait, from the Pantheon page. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters). Add heroes and edit their backstories from the Heroes page; post, edit and delete a hero's updates on the hero's own page.
-- **Coming soon.** Atlas is linked from the top navigation as a face-down card.
+- **Dungeon Master tools.** Sign in at `/dm` to add, edit, draft and delete lore. You can import `.md` files directly, and upload an image for any card: it becomes the card's art and appears above the text. Give an entry an in-universe date to put it on the Chronicle, and pick the pantheon members it refers to. Add pantheon members of your own, with a portrait, from the Pantheon page. On the Chronicle page itself, signed-in DMs get forms to add eras and points (events of up to 255 characters). Add heroes and edit their backstories from the Heroes page; post, edit and delete a hero's updates on the hero's own page. On the Atlas page, signed-in DMs get tools to add places, draw realms, ranges and rivers and plant forests, and drag any of them into place.
+- **Atlas.** The charts of the known world at `/atlas`, drawn in ink on parchment. Drag to pan; scroll, pinch or the buttons to zoom. Realms and capitals are always named; cities and seas appear as you zoom in, then ranges, forests and rivers. Select a place to draw its lore card, or a realm to read its standing. See [The Atlas](#the-atlas).
 
 ## Stack
 
@@ -55,7 +55,7 @@ docker run -d -p 8080:8080 \
 
 - **Mount a volume at `/pb/pb_data`.** The database and every uploaded image live there.
 - **First start.** The migrations create the collections and seed the archive from the lore files baked into the image (`/pb/lore`). This runs once. Later DM edits are never overwritten.
-- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links). The Heroes migrations create the heroes and their updates, and seed Daymond Greystone (skipped if his URL name is taken). The card art migrations add the `card_art` field and make a card copy of every existing image, so the lists are fast as soon as the new version starts.
+- **Upgrading.** New migrations run on the next start. The Chronicle migrations add the date fields, date the seeded lore (skipping any entry that already has a date or whose URL name has changed), and seed the eras and events. The Pantheon migrations create the pantheon, copy the Primal Dragons' portraits from their recollections, and link the seeded lore to the members it names (skipping any entry that already has links). The Heroes migrations create the heroes and their updates, and seed Daymond Greystone (skipped if his URL name is taken). The card art migrations add the `card_art` field and make a card copy of every existing image, so the lists are fast as soon as the new version starts. The Atlas migrations create the charts and seed the chart of Hurly (skipped if a chart called `hurly` already exists).
 - **`DM_EMAIL` / `DM_PASSWORD`** create the first Dungeon Master if that account doesn't exist yet. You can also add DMs from the admin UI at `/_/` under **dungeon_masters**. There is no public sign-up.
 - **Pantheon.** The powers of Phanatos at `/pantheon`, laid out like the archive: searchable, filtered by rank, one card each. A member's page ends with the cards of every lore entry that refers to them, and every lore entry ends with the members it names.
 - **Chronicle.** A timeline of the ages at `/chronicle`, read left to right. Drag to pan; pinch, Ctrl + scroll or the buttons to zoom. Eras run as bands across the top, lore sits above the line as titles (hover for the card, click to read it), and short events sit below it. Where things crowd together they gather into a "+N" marker that opens as you zoom in.
@@ -80,6 +80,23 @@ A hero card has its own frame, orange running into green like a pendulum card. I
 The site keeps a character's identity, not their sheet: name, player, species, class and subclass, background, alignment, faith, a portrait and a markdown backstory. Level and other stats stay on the character sheet. Updates are short markdown notes (up to 4,000 characters) with an optional heading, shown newest first beneath the backstory. Deleting a hero deletes their updates; an unpublished hero's updates are hidden along with them.
 
 One hero is seeded, Daymond Greystone, with his player's backstory ([`1790985601_seed_heroes.js`](pb_migrations/1790985601_seed_heroes.js)).
+
+## The Atlas
+
+A chart is drawn entirely in vector, from four kinds of record:
+
+| Record | What it is | How a DM makes one |
+|---|---|---|
+| Chart | The sheet: its coastline, its seas' names, a dateline and a description | In the admin UI at `/_/` for now; a chart with no land yet shows as face down |
+| Place | A pin that draws a lore card: capital, city, port, fortress or ruin | **Add a place**, then click the chart |
+| Realm | A political region: a polygon, a tint and a standing | **Draw a realm**, click its corners, then finish |
+| Terrain | A mountain range, forest, river or lake | **Draw a range** or **Draw a river** along its line; **Plant a forest** at its heart |
+
+Everything is placed in chart units, whole numbers from 0 to the chart's width and height (1400 × 700 for Hurly). With **Select**, a DM drags a pin to move a place, and the handles of a selected realm or piece of terrain to reshape it: a forest or lake moves by its heart and resizes by its edge. A drag is saved when it ends. Names, kinds, tints, standings and lore cards are edited in the desk under the chart, where a lake is made by changing a forest's kind. New things start unpublished, so only DMs see them until they are published.
+
+A place names the realm it is said to stand in. A seeded place keeps the realm the lore gives it; a place a DM adds or drags takes the realm it lands in.
+
+The seeded chart is Hurly as of c. 307 AC: 24 realms, nine pieces of terrain and eight places ([`1791158401_seed_atlas.js`](pb_migrations/1791158401_seed_atlas.js)). The realm borders are cells fitted to a traced coastline, not the lines of the hand-drawn map, and the places stand only roughly where the lore puts them. Both are meant to be dragged into place.
 
 ## How the lore is organised
 

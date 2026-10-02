@@ -1,4 +1,6 @@
 import type { ListResult } from 'pocketbase';
+import { DEFAULT_CHART_SLUG } from '../lib/atlas';
+import type { Chart, Feature, FeatureInput, Place, PlaceInput, Realm, RealmInput } from '../types/atlas';
 import type { Era, EraInput, TimelinePoint, TimelinePointInput } from '../types/chronicle';
 import type {
   FeaturedImage,
@@ -460,6 +462,148 @@ export async function deleteTimelinePoint(id: string): Promise<void> {
     await pb.collection('timeline_points').delete(id);
   } catch (error) {
     console.error('Error deleting the timeline point:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Atlas
+// ---------------------------------------------------------------------------
+
+/** A place with the card of its lore entry, and nothing more of the entry than the card needs. */
+const PLACE_QUERY = {
+  expand: 'lore',
+  fields: '*,' + SUMMARY_FIELDS.split(',').map((field) => `expand.lore.${field}`).join(','),
+};
+
+/** Every chart the visitor may see: the default chart first, the rest by name. Drafts only for DMs. */
+export async function listCharts(): Promise<Chart[]> {
+  try {
+    const charts = await pb.collection('charts').getFullList<Chart>({ sort: 'name', requestKey: null });
+    return [...charts.filter((chart) => chart.slug === DEFAULT_CHART_SLUG), ...charts.filter((chart) => chart.slug !== DEFAULT_CHART_SLUG)];
+  } catch (error) {
+    console.error('Error listing charts:', error);
+    throw error;
+  }
+}
+
+export async function getChartBySlug(slug: string): Promise<Chart> {
+  try {
+    return await pb.collection('charts').getFirstListItem<Chart>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the chart:', error);
+    throw error;
+  }
+}
+
+/**
+ * What stands on a chart comes back in the order it was added: the realm
+ * drawn last lies on top, and is the one a click finds.
+ */
+function onChart(chartId: string) {
+  return { filter: pb.filter('chart = {:chart}', { chart: chartId }), sort: '@rowid', requestKey: null };
+}
+
+/** A chart's places, each with the card of its lore entry when the visitor may read it. */
+export async function listPlaces(chartId: string): Promise<Place[]> {
+  try {
+    return await pb.collection('places').getFullList<Place>({ ...onChart(chartId), ...PLACE_QUERY });
+  } catch (error) {
+    console.error('Error listing places:', error);
+    throw error;
+  }
+}
+
+export async function listRealms(chartId: string): Promise<Realm[]> {
+  try {
+    return await pb.collection('realms').getFullList<Realm>(onChart(chartId));
+  } catch (error) {
+    console.error('Error listing realms:', error);
+    throw error;
+  }
+}
+
+export async function listFeatures(chartId: string): Promise<Feature[]> {
+  try {
+    return await pb.collection('features').getFullList<Feature>(onChart(chartId));
+  } catch (error) {
+    console.error('Error listing terrain:', error);
+    throw error;
+  }
+}
+
+/** Creates the place, or updates it when `id` is given. */
+export async function savePlace(data: PlaceInput, id?: string): Promise<Place> {
+  const body = { chart: data.chart, name: data.name, kind: data.kind, x: data.x, y: data.y, realm: data.realm, lore: data.lore, published: data.published };
+  const options = { ...PLACE_QUERY, requestKey: null };
+  try {
+    return id
+      ? await pb.collection('places').update<Place>(id, body, options)
+      : await pb.collection('places').create<Place>(body, options);
+  } catch (error) {
+    console.error('Error saving the place:', error);
+    throw error;
+  }
+}
+
+export async function deletePlace(id: string): Promise<void> {
+  try {
+    await pb.collection('places').delete(id);
+  } catch (error) {
+    console.error('Error deleting the place:', error);
+    throw error;
+  }
+}
+
+/** Creates the realm, or updates it when `id` is given. */
+export async function saveRealm(data: RealmInput, id?: string): Promise<Realm> {
+  const body = {
+    chart: data.chart,
+    name: data.name,
+    standing: data.standing,
+    tone: data.tone,
+    label: data.label,
+    points: data.points,
+    lore: data.lore,
+    published: data.published,
+  };
+  try {
+    return id
+      ? await pb.collection('realms').update<Realm>(id, body, { requestKey: null })
+      : await pb.collection('realms').create<Realm>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the realm:', error);
+    throw error;
+  }
+}
+
+export async function deleteRealm(id: string): Promise<void> {
+  try {
+    await pb.collection('realms').delete(id);
+  } catch (error) {
+    console.error('Error deleting the realm:', error);
+    throw error;
+  }
+}
+
+/** Creates the terrain, or updates it when `id` is given. */
+export async function saveFeature(data: FeatureInput, id?: string): Promise<Feature> {
+  const body = { chart: data.chart, name: data.name, kind: data.kind, points: data.points, spread: data.spread, published: data.published };
+  try {
+    return id
+      ? await pb.collection('features').update<Feature>(id, body, { requestKey: null })
+      : await pb.collection('features').create<Feature>(body, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the terrain:', error);
+    throw error;
+  }
+}
+
+export async function deleteFeature(id: string): Promise<void> {
+  try {
+    await pb.collection('features').delete(id);
+  } catch (error) {
+    console.error('Error deleting the terrain:', error);
     throw error;
   }
 }

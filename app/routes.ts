@@ -4,14 +4,12 @@ export default [
   index("routes/home.tsx"),
   route("/lore", "routes/lore.tsx"),
   route("/lore/:slug", "routes/loreEntry.tsx"),
+  route("/atlas", "routes/atlas.tsx"),
   route("/chronicle", "routes/chronicle.tsx"),
   route("/pantheon", "routes/pantheon.tsx"),
   route("/pantheon/:slug", "routes/pantheonEntry.tsx"),
   route("/heroes", "routes/heroes.tsx"),
   route("/heroes/:slug", "routes/heroEntry.tsx"),
-
-  // Sections that haven't been built yet share one face-down page.
-  route("/atlas", "routes/comingSoon.tsx", { id: "atlas" }),
 
   route("/dm", "routes/dm.tsx"),
   route("/dm/lore/new", "routes/dmEditor.tsx", { id: "dm-lore-new" }),
