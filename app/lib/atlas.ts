@@ -98,6 +98,37 @@ export function spreadTo(heart: ChartPoint, x: number, y: number): number {
   return clampSpread(Math.hypot(x - heart[0], (y - heart[1]) / SQUASH));
 }
 
+/** The fewest points a shape can have: a realm needs three corners, a range or river two points. */
+export function fewestPoints(shape: "realm" | FeatureKind): number {
+  if (shape === "realm") return 3;
+  return isRound(shape) ? 1 : 2;
+}
+
+/**
+ * Where a new point can go: halfway along each side of a realm (the closing
+ * side included), or each stretch of a line, with the index it would take.
+ */
+export function midpoints(points: ChartPoint[], closed: boolean): { index: number; at: ChartPoint }[] {
+  const sides: { index: number; at: ChartPoint }[] = [];
+  const count = closed ? points.length : points.length - 1;
+  for (let i = 0; i < count; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    sides.push({ index: i + 1, at: [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)] });
+  }
+  return sides;
+}
+
+export function insertPoint(points: ChartPoint[], index: number, point: ChartPoint): ChartPoint[] {
+  return [...points.slice(0, index), point, ...points.slice(index)];
+}
+
+/** The points without the one at `index`, or null when that would leave fewer than `fewest`. */
+export function removePoint(points: ChartPoint[], index: number, fewest: number): ChartPoint[] | null {
+  if (points.length <= fewest) return null;
+  return points.filter((_, i) => i !== index);
+}
+
 /**
  * A feature's points and spread as another kind needs them. Between a range
  * and a river, or a forest and a lake, nothing moves; across the two shapes a

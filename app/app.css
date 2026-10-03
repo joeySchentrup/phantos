@@ -1259,6 +1259,20 @@
     color: #1d150c;
     text-shadow: 0 0 3px #efe2c0, 0 0 6px #efe2c0, 0 0 10px #efe2c0;
   }
+  /* The DM's selected realm: its name can be dragged. */
+  .atlas-name--movable {
+    padding: 1px 5px;
+    border: 1px dashed #8a1f0d;
+    border-radius: 3px;
+    background: rgba(255, 242, 210, 0.6);
+    cursor: move;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  .atlas-name--movable:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
   .atlas-name__draft {
     margin-left: 5px;
     border-radius: 2px;
@@ -1333,6 +1347,24 @@
     transition: transform 140ms ease;
   }
   .atlas-handle--square { border-radius: 2px; }
+  /* Halfway along a side: drag it, or press it, to add a corner there. */
+  .atlas-handle--add {
+    left: -6px;
+    top: -6px;
+    width: 12px;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-style: dashed;
+    background: rgba(255, 242, 210, 0.75);
+    color: #8a1f0d;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: copy;
+  }
   .atlas-handle--spread { cursor: ew-resize; }
   .atlas-handle:hover { transform: scale(1.3); }
 

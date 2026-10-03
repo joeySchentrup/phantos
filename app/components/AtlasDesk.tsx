@@ -308,7 +308,9 @@ function RealmsPanel({ realms, selected, onSelect, onSave, onDelete, onNotice }:
         <span className="ml-2 font-serif text-sm font-normal text-[#c9b78f]">{realms.length} on the chart</span>
       </h3>
       <p className="mt-1 text-sm text-[#c9b78f]">
-        The political chart. Choose “Draw a realm” and click its corners; drag a corner on the chart to move a border.
+        The political chart. Choose “Draw a realm” and click its corners. On the chart, drag a corner to move a border,
+        drag a + between two corners to add one, and double-click a corner to remove it. Drag the name to move it;
+        double-click it to centre it again.
       </p>
 
       <form onSubmit={onSubmit} className="mt-4 space-y-4">

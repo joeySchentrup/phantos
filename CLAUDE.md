@@ -125,6 +125,7 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - The timeline's row heights are constants in `app/components/Timeline.tsx` that the `.tl-*` rules in `app/app.css` match. Change them together.
 - The Atlas positions everything by percentages of one box (`.atlas-sheet`), which carries the pan and zoom as a single transform. Names, pins, handles and stroke widths are scaled back by `1/z` so they hold their size; put that counter-scale on a wrapper, never on the pin itself, or it loses its hover scale.
 - Chart geometry and the view maths live in `app/lib/atlas.ts` as pure functions with tests. `AtlasChart` owns only the view, the hover and the gesture in progress; `routes/atlas.tsx` owns the records, the tool and the selection, and saves a drag once, when it ends.
+- The chart's handles cancel their `pointerdown` (so a drag can't select text), which stops the browser sending `dblclick`. Count double presses with `secondPress()` in `AtlasChart` instead.
 - Places, realms and features are listed by `@rowid`: the order they were added is the order they are drawn, and the last one drawn is the one a click finds.
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).
 - Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step.

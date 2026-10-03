@@ -7,21 +7,25 @@ import {
   TONES,
   ZOOM_STEP,
   chartToFrame,
+  fewestPoints,
   forestPath,
   frameToView,
   hitRealm,
   hitTerrain,
   initialView,
+  insertPoint,
   isRound,
   labelSize,
   lakePath,
   landCentre,
+  midpoints,
   mountainPath,
   nameTier,
   placeRealm,
   pointerToChart,
   polygonPath,
   realmLabel,
+  removePoint,
   ringPath,
   sheetHeight,
   smoothPath,
@@ -70,7 +74,21 @@ type DragTarget =
   | { type: "place"; id: string }
   | { type: "realm"; id: string; index: number }
   | { type: "feature"; id: string; index: number }
-  | { type: "spread"; id: string };
+  | { type: "spread"; id: string }
+  | { type: "label"; id: string };
+
+/** A handle on the selected realm or terrain: a point to drag, or a "+" to drag out a new one. */
+interface Handle {
+  key: string;
+  at: ChartPoint;
+  label: string;
+  className: string;
+  target: DragTarget;
+  /** For a "+": the index the new point takes. */
+  insert?: number;
+  /** A corner or point that can go without leaving the shape too few. */
+  removable?: boolean;
+}
 
 interface Drag {
   target: DragTarget;
@@ -80,6 +98,8 @@ interface Drag {
   /** From the pointer to the thing's own position, in chart units, so it doesn't jump on the first move. */
   offset: ChartPoint;
   moved: boolean;
+  /** Changed before it moved: a new point, which is saved even if it is never dragged. */
+  dirty: boolean;
   edit: AtlasEdit | null;
 }
 
@@ -181,6 +201,9 @@ export default function AtlasChart({
   const pinch = useRef<{ distance: number; z: number } | null>(null);
   const pan = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
   const drag = useRef<Drag | null>(null);
+  // Handles cancel their pointerdown, which stops the browser counting clicks, so double presses are counted here.
+  const lastPress = useRef<{ key: string; time: number } | null>(null);
+  const dragged = useRef(false);
 
   // Beside the key the frame takes the row's height, so its shape is measured, never assumed.
   useLayoutEffect(() => {
@@ -291,16 +314,77 @@ export default function AtlasChart({
 
   // ---- Pointers: pan, pinch, click, and the Dungeon Master's drags ---------
 
-  const startDrag = (event: React.PointerEvent, target: DragTarget, at: ChartPoint) => {
+  const startDrag = (event: React.PointerEvent, target: DragTarget, at: ChartPoint): Drag => {
     const pointer = toChart(event);
+    dragged.current = false;
     drag.current = {
       target,
       x: event.clientX,
       y: event.clientY,
       offset: [at[0] - pointer[0], at[1] - pointer[1]],
       moved: false,
+      dirty: false,
       edit: null,
     };
+    return drag.current;
+  };
+
+  /** The selected realm or line with new points, as an edit. */
+  const reshaped = (target: DragTarget, points: (current: ChartPoint[]) => ChartPoint[] | null): AtlasEdit | null => {
+    if (target.type === "realm") {
+      const realm = realms.find((r) => r.id === target.id);
+      const next = realm && points(realm.points);
+      return realm && next ? { type: "realm", record: { ...realm, points: next } } : null;
+    }
+    if (target.type === "feature") {
+      const feature = features.find((f) => f.id === target.id);
+      const next = feature && points(feature.points);
+      return feature && next ? { type: "feature", record: { ...feature, points: next } } : null;
+    }
+    return null;
+  };
+
+  /** Pressing a "+" puts a new point there at once; dragging carries it on like any other. */
+  const startHandle = (event: React.PointerEvent, handle: Handle) => {
+    event.stopPropagation();
+    event.preventDefault();
+    if (handle.insert === undefined) {
+      startDrag(event, handle.target, handle.at);
+      return;
+    }
+    const edit = reshaped(handle.target, (points) => insertPoint(points, handle.insert!, handle.at));
+    if (!edit) return;
+    onChange(edit);
+    const held = startDrag(event, handle.target, handle.at);
+    held.dirty = true;
+    held.edit = edit;
+  };
+
+  /** Saves a change made in one go: a point added from the keyboard, or one removed. */
+  const changeNow = (edit: AtlasEdit | null) => {
+    if (!edit) return;
+    onChange(edit);
+    onCommit(edit);
+  };
+
+  /** Whether this press of a handle is the second in quick succession. The press that ends a drag doesn't count. */
+  const secondPress = (key: string): boolean => {
+    if (dragged.current) {
+      dragged.current = false;
+      lastPress.current = null;
+      return false;
+    }
+    const now = performance.now();
+    const again = lastPress.current?.key === key && now - lastPress.current.time < 400;
+    lastPress.current = again ? null : { key, time: now };
+    return again;
+  };
+
+  const removeHandle = (handle: Handle) => {
+    if (!handle.removable || (handle.target.type !== "realm" && handle.target.type !== "feature")) return;
+    const { index } = handle.target;
+    const fewest = handle.target.type === "realm" ? fewestPoints("realm") : fewestPoints("river");
+    changeNow(reshaped(handle.target, (points) => removePoint(points, index, fewest)));
   };
 
   const moveDrag = (event: React.PointerEvent, held: Drag) => {
@@ -326,6 +410,9 @@ export default function AtlasChart({
     } else if (target.type === "feature") {
       const feature = features.find((f) => f.id === target.id);
       if (feature) edit = { type: "feature", record: { ...feature, points: feature.points.map((p, i) => (i === target.index ? at : p)) } };
+    } else if (target.type === "label") {
+      const realm = realms.find((r) => r.id === target.id);
+      if (realm) edit = { type: "realm", record: { ...realm, label: at } };
     } else {
       const feature = features.find((f) => f.id === target.id);
       if (feature?.points[0]) edit = { type: "feature", record: { ...feature, spread: spreadTo(feature.points[0], pointer[0], pointer[1]) } };
@@ -341,9 +428,10 @@ export default function AtlasChart({
     if (!held) return;
     drag.current = null;
     setGesture(null);
-    if (!held.moved || !held.edit) return;
+    dragged.current = held.moved;
+    if (!held.edit || !(held.moved || held.dirty)) return;
     onCommit(held.edit);
-    if (held.target.type === "place") onSelect({ type: "place", id: held.target.id });
+    if (held.moved && held.target.type === "place") onSelect({ type: "place", id: held.target.id });
   };
 
   const onPointerDown = (event: React.PointerEvent) => {
@@ -471,13 +559,18 @@ export default function AtlasChart({
 
   let caption: { kicker: string; name: string; note: string } | null = null;
   if (lit.realm) {
+    const reshaping = dm && picked.realm?.id === lit.realm.id;
     caption = {
       kicker: lit.realm.published ? "Realm" : "Realm · Draft",
       name: lit.realm.name,
-      note: lit.realm.standing || "No standing recorded",
+      note:
+        (lit.realm.standing || "No standing recorded") +
+        (reshaping ? " · drag a corner or the name; drag a + to add a corner, double-click a corner to remove it" : ""),
     };
   } else if (lit.feature) {
-    const handles = isRound(lit.feature.kind) ? " · drag the heart to move it, the edge to resize" : " · drag the handles to move it";
+    const handles = isRound(lit.feature.kind)
+      ? " · drag the heart to move it, the edge to resize"
+      : " · drag a point to move it, a + to add one; double-click a point to remove it";
     caption = {
       kicker: lit.feature.published ? "Terrain" : "Terrain · Draft",
       name: lit.feature.name,
@@ -507,29 +600,58 @@ export default function AtlasChart({
   const spot = (x: number, y: number) => ({ left: `${(x / chart.width) * 100}%`, top: `${(y / chart.height) * 100}%` });
   const centred = (scale: number) => `translate(-50%, -50%) scale(${scale})`;
 
-  const handles: { key: string; at: ChartPoint; label: string; className: string; target: DragTarget }[] = [];
+  const handles: Handle[] = [];
   if (dm && picked.realm) {
     const realm = picked.realm;
+    const removable = realm.points.length > fewestPoints("realm");
+    // The "+"s go first, so the corners sit on top of them where a short side crowds them together.
+    for (const side of midpoints(realm.points, true)) {
+      handles.push({
+        key: `add-${side.index}`,
+        at: side.at,
+        label: `Add a corner to ${realm.name} between corners ${side.index} and ${(side.index % realm.points.length) + 1}`,
+        className: "atlas-handle atlas-handle--add",
+        target: { type: "realm", id: realm.id, index: side.index },
+        insert: side.index,
+      });
+    }
     realm.points.forEach((point, index) =>
       handles.push({
         key: `corner-${index}`,
         at: point,
-        label: `Corner ${index + 1} of ${realm.name}`,
+        label: `Corner ${index + 1} of ${realm.name}${removable ? ", double-click or press Delete to remove it" : ""}`,
         className: "atlas-handle atlas-handle--square",
         target: { type: "realm", id: realm.id, index },
+        removable,
       })
     );
   }
   if (dm && picked.feature) {
     const feature = picked.feature;
     const round = isRound(feature.kind);
+    const removable = !round && feature.points.length > fewestPoints(feature.kind);
+    if (!round) {
+      for (const stretch of midpoints(feature.points, false)) {
+        handles.push({
+          key: `add-${stretch.index}`,
+          at: stretch.at,
+          label: `Add a point to ${feature.name} between points ${stretch.index} and ${stretch.index + 1}`,
+          className: "atlas-handle atlas-handle--add",
+          target: { type: "feature", id: feature.id, index: stretch.index },
+          insert: stretch.index,
+        });
+      }
+    }
     feature.points.forEach((point, index) =>
       handles.push({
         key: `point-${index}`,
         at: point,
-        label: round ? `Heart of ${feature.name}` : `Point ${index + 1} of ${feature.name}`,
+        label: round
+          ? `Heart of ${feature.name}`
+          : `Point ${index + 1} of ${feature.name}${removable ? ", double-click or press Delete to remove it" : ""}`,
         className: "atlas-handle",
         target: { type: "feature", id: feature.id, index },
+        removable,
       })
     );
     // A forest or lake also has a handle on its edge: drag it to change the spread.
@@ -633,6 +755,8 @@ export default function AtlasChart({
               {layers.realms && (
                 <div className="atlas-layer" aria-hidden="true">
                   {realms.map((realm) => {
+                    // The DM's selected realm has its name drawn as a handle, below.
+                    if (dm && picked.realm?.id === realm.id) return null;
                     const [x, y] = realmLabel(realm);
                     return (
                       <span
@@ -672,14 +796,46 @@ export default function AtlasChart({
                         type="button"
                         className={handle.className}
                         aria-label={handle.label}
+                        onPointerDown={(event) => startHandle(event, handle)}
+                        onClick={(event) => {
+                          // A "+" pressed from the keyboard adds its point where it is.
+                          if (event.detail === 0 && handle.insert !== undefined) {
+                            changeNow(reshaped(handle.target, (points) => insertPoint(points, handle.insert!, handle.at)));
+                          } else if (handle.removable && secondPress(handle.key)) {
+                            removeHandle(handle);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Delete" || event.key === "Backspace") removeHandle(handle);
+                        }}
+                      >
+                        {handle.insert !== undefined && "+"}
+                      </button>
+                    </div>
+                  ))}
+                  {picked.realm && layers.realms && (() => {
+                    const realm = picked.realm;
+                    const at = realmLabel(realm);
+                    return (
+                      <button
+                        type="button"
+                        className="atlas-name atlas-name--realm atlas-name--movable"
+                        style={{ ...spot(at[0], at[1]), transform: centred(labelScale), fontSize: labelSize(realm) }}
+                        aria-label={`Name of ${realm.name}: drag to move it${realm.label ? ", double-click to centre it again" : ""}`}
                         onPointerDown={(event) => {
                           event.stopPropagation();
                           event.preventDefault();
-                          startDrag(event, handle.target, handle.at);
+                          startDrag(event, { type: "label", id: realm.id }, at);
                         }}
-                      />
-                    </div>
-                  ))}
+                        onClick={() => {
+                          // A double press puts it back in the middle of its corners, where it follows them as they move.
+                          if (secondPress("label") && realm.label) changeNow({ type: "realm", record: { ...realm, label: null } });
+                        }}
+                      >
+                        {realm.name}
+                      </button>
+                    );
+                  })()}
                   {draft.map((point, index) => (
                     <span key={index} className="atlas-draft-dot" style={{ ...spot(point[0], point[1]), transform: centred(inv) }} />
                   ))}

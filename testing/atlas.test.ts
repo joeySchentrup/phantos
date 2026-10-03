@@ -4,13 +4,16 @@ import {
   chartToFrame,
   distanceToSegment,
   forestPath,
+  fewestPoints,
   frameToView,
+  insertPoint,
   hitRealm,
   hitTerrain,
   initialView,
   labelSize,
   lakePath,
   landCentre,
+  midpoints,
   mountainPath,
   nameTier,
   placeRealm,
@@ -18,6 +21,7 @@ import {
   pointerToChart,
   polygonPath,
   realmLabel,
+  removePoint,
   reshape,
   ringPath,
   smoothPath,
@@ -130,6 +134,33 @@ describe("hit-testing", () => {
     expect(spreadTo([700, 322], 700, 346)).toBe(30);
     expect(spreadTo([700, 322], 701, 322)).toBe(8);
     expect(spreadTo([700, 322], 900, 322)).toBe(80);
+  });
+});
+
+describe("adding and removing points", () => {
+  it("offers a point halfway along every side of a realm, and every stretch of a line", () => {
+    expect(midpoints(SQUARE, true)).toEqual([
+      { index: 1, at: [5, 0] },
+      { index: 2, at: [10, 5] },
+      { index: 3, at: [5, 10] },
+      { index: 4, at: [0, 5] },
+    ]);
+    expect(midpoints([[0, 0], [10, 0], [10, 7]], false)).toEqual([
+      { index: 1, at: [5, 0] },
+      { index: 2, at: [10, 4] },
+    ]);
+  });
+
+  it("puts a new point where it was offered, the closing side included", () => {
+    expect(insertPoint(SQUARE, 1, [5, 0])).toEqual([[0, 0], [5, 0], [10, 0], [10, 10], [0, 10]]);
+    expect(insertPoint(SQUARE, 4, [0, 5])).toEqual([[0, 0], [10, 0], [10, 10], [0, 10], [0, 5]]);
+  });
+
+  it("won't take a shape below its fewest points", () => {
+    expect(removePoint(SQUARE, 1, fewestPoints("realm"))).toEqual([[0, 0], [10, 10], [0, 10]]);
+    expect(removePoint([[0, 0], [10, 0], [10, 10]], 0, fewestPoints("realm"))).toBeNull();
+    expect(removePoint([[0, 0], [10, 0]], 0, fewestPoints("river"))).toBeNull();
+    expect(fewestPoints("mountains")).toBe(2);
   });
 });
 
