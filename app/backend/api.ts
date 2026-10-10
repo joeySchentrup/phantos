@@ -12,7 +12,7 @@ import type {
 } from '../types/lore';
 import type { Hero, HeroSummary, HeroUpdate, HeroUpdateInput } from '../types/hero';
 import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
-import pb from './pocketbaseClient';
+import pb, { POCKETBASE_URL } from './pocketbaseClient';
 
 const DM_COLLECTION = 'dungeon_masters';
 
@@ -107,6 +107,15 @@ export async function searchLore(
     console.error('Error searching lore:', error);
     throw error;
   }
+}
+
+/**
+ * The newest published lore as an RSS feed. A link, not a call: the root
+ * prints it into every page's head at build time, so it is made from the
+ * configured address alone and reads the same there as in the browser.
+ */
+export function loreFeedUrl(): string {
+  return `${POCKETBASE_URL.replace(/\/+$/, '')}/api/phantos/feed.xml`;
 }
 
 /** Every entry, drafts included, for the DM's desk. */

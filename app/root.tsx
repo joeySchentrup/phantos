@@ -2,6 +2,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { loreFeedUrl } from "./backend/api";
 import SiteHeader from "./components/SiteHeader";
 import { ATTRIBUTE_GLYPHS } from "./lib/lore";
 import { SECTIONS } from "./lib/sections";
@@ -23,6 +24,8 @@ export const links: Route.LinksFunction = () => [
     href: `https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&text=${encodeURIComponent(ATTRIBUTE_GLYPHS)}&display=swap`,
   },
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+  // Lets a feed reader find the lore feed from the address of any page.
+  { rel: "alternate", type: "application/rss+xml", title: "Phantos — Lore Archive", href: loreFeedUrl() },
 ];
 
 /**
@@ -42,6 +45,9 @@ function Footer() {
               {s.label}
             </a>
           ))}
+          <a href={loreFeedUrl()} className="hover:text-[#f4e6c3] transition-colors">
+            RSS feed
+          </a>
           <a href="/dm" className="hover:text-[#f4e6c3] transition-colors">
             Dungeon Master
           </a>

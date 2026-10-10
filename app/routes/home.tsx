@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/home";
-import { getArchiveStats, getFeaturedImage, listLore } from "../backend/api";
+import { getArchiveStats, getFeaturedImage, listLore, loreFeedUrl } from "../backend/api";
 import { CardGrid, CardGridSkeleton } from "../components/CardGrid";
 import FeaturedVision from "../components/FeaturedVision";
 import { CATEGORIES, CATEGORY_ORDER } from "../lib/lore";
@@ -84,9 +84,18 @@ export default function Home() {
               Newest Lore
             </h2>
           </div>
-          <Link to="/lore" className="btn btn-ghost">
-            Search the archive
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <a href={loreFeedUrl()} className="btn btn-ghost" title="Follow new lore in a feed reader">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" className="h-3.5 w-3.5" aria-hidden="true">
+                <path d="M5 11a8 8 0 0 1 8 8M5 4a15 15 0 0 1 15 15" />
+                <circle cx="6.2" cy="17.8" r="1.8" fill="currentColor" stroke="none" />
+              </svg>
+              RSS
+            </a>
+            <Link to="/lore" className="btn btn-ghost">
+              Search the archive
+            </Link>
+          </div>
         </div>
 
         <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2" aria-label="Card frames">

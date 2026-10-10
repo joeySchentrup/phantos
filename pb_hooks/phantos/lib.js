@@ -484,6 +484,120 @@ function search(query, category, includeDrafts, limit) {
 }
 
 // ---------------------------------------------------------------------------
+// RSS feed
+// ---------------------------------------------------------------------------
+
+const FEED_SIZE = 50;
+
+/** What the site calls each category: the labels of CATEGORIES in app/lib/lore.ts. Keep them in step. */
+const CATEGORY_LABELS = {
+  tale: 'Tale',
+  chronicle: 'Chronicle',
+  myth: 'Myth',
+  dispatch: 'Dispatch',
+  codex: 'Codex',
+  dragon: 'Recollection',
+  map: 'Map',
+};
+
+/** Text made safe for an XML element or attribute, without the control characters XML can't carry. */
+function escapeXml(text) {
+  return String(text == null ? '' : text)
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** PocketBase's "2026-10-01 00:44:08.123Z" as the RFC 822 date RSS asks for. */
+function rssDate(value) {
+  const date = new Date(String(value || '').replace(' ', 'T'));
+  return isNaN(date.getTime()) ? '' : date.toUTCString();
+}
+
+/**
+ * The address the request came in on. PocketBase usually sits behind a proxy
+ * that ends TLS, so the scheme is the forwarded one when there is one.
+ */
+function requestOrigin(e) {
+  const forwarded = String(e.request.header.get('X-Forwarded-Proto') || '').split(',')[0].trim().toLowerCase();
+  const scheme = forwarded === 'https' || forwarded === 'http' ? forwarded : e.isTLS() ? 'https' : 'http';
+  return scheme + '://' + e.request.host;
+}
+
+/**
+ * Where the pages are. That is where the API is, unless SITE_URL says
+ * otherwise: local dev, where Vite serves them, or a proxy that hides the host.
+ */
+function siteUrl(origin) {
+  return ($os.getenv('SITE_URL') || '').trim().replace(/\/+$/, '') || origin;
+}
+
+/**
+ * An RSS 2.0 document of lore entries, in the order given. `site` is where the
+ * pages are and `self` is the feed's own address; both are absolute.
+ */
+function feedXml(site, self, items) {
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">',
+    '  <channel>',
+    '    <title>Phantos — Lore Archive</title>',
+    '    <link>' + escapeXml(site + '/lore') + '</link>',
+    '    <description>Every tale, chronicle, myth and dispatch of Phanatos.</description>',
+    '    <language>en</language>',
+    '    <atom:link href="' + escapeXml(self) + '" rel="self" type="application/rss+xml"/>',
+  ];
+
+  const newest = items.length ? rssDate(items[0].created) : '';
+  if (newest) lines.push('    <lastBuildDate>' + newest + '</lastBuildDate>');
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const date = rssDate(item.created);
+    const category = CATEGORY_LABELS[item.category];
+
+    lines.push('    <item>');
+    lines.push('      <title>' + escapeXml(item.title) + '</title>');
+    lines.push('      <link>' + escapeXml(site + '/lore/' + encodeURIComponent(item.slug)) + '</link>');
+    // The id, not the address: a slug can be changed, and a reader would show the entry as new.
+    lines.push('      <guid isPermaLink="false">phantos-lore-' + escapeXml(item.id) + '</guid>');
+    if (date) lines.push('      <pubDate>' + date + '</pubDate>');
+    if (category) lines.push('      <category>' + escapeXml(category) + '</category>');
+    if (item.author) lines.push('      <dc:creator>' + escapeXml(item.author) + '</dc:creator>');
+    if (item.summary) lines.push('      <description>' + escapeXml(item.summary) + '</description>');
+    lines.push('    </item>');
+  }
+
+  lines.push('  </channel>', '</rss>');
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * The newest published lore as RSS: the card text, not the document. Drafts
+ * are never in it, whoever asks, because a feed reader doesn't sign in.
+ */
+function loreFeed(site, self) {
+  const records = $app.findRecordsByFilter('lore', 'published = true', '-created,-id', FEED_SIZE, 0);
+
+  const items = [];
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    items.push({
+      id: r.id,
+      slug: r.getString('slug'),
+      title: r.getString('title'),
+      category: r.getString('category'),
+      author: r.getString('author').trim(),
+      summary: r.getString('summary').trim(),
+      created: r.getString('created'),
+    });
+  }
+  return feedXml(site, self, items);
+}
+
+// ---------------------------------------------------------------------------
 // Dungeon Master bootstrap
 // ---------------------------------------------------------------------------
 
@@ -534,5 +648,9 @@ module.exports = {
   prepareRealm: prepareRealm,
   prepareFeature: prepareFeature,
   search: search,
+  requestOrigin: requestOrigin,
+  siteUrl: siteUrl,
+  feedXml: feedXml,
+  loreFeed: loreFeed,
   ensureDungeonMaster: ensureDungeonMaster,
 };

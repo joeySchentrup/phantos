@@ -32,6 +32,10 @@ if [ -f "$SECRETS_FILE" ]; then
   echo "Loaded server-side env from $SECRETS_FILE"
 fi
 
+# Vite serves the pages here, not PocketBase, so the RSS feed's links point at
+# it. Set after .env is loaded so that an empty SITE_URL there still gets it.
+export SITE_URL="${SITE_URL:-http://localhost:5173}"
+
 # Download PocketBase binary if not already present
 if [ ! -f "$PB_BIN" ]; then
   echo "Downloading PocketBase v${PB_VERSION}..."

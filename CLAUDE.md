@@ -49,7 +49,7 @@ app/
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
 └── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts
 pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds
-pb_hooks/              # search route, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
+pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
 ```
 
@@ -109,6 +109,7 @@ lore/                  # the original documents (seed source, copied into the im
 - On every place, realm and feature save: trim the names, round every coordinate to a whole chart unit and clamp it to the chart. A realm with fewer than three corners is refused, as is a range or river with fewer than two points or a forest or lake with more than one; `tone` is clamped to 0–5 and `spread` to 8–80.
 - On every lore, pantheon and hero save, `syncCardArt` drops `card_art` when the image changed (or went) without a new copy coming with it.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
+- `GET /api/phantos/feed.xml`: the 50 newest published lore entries as RSS 2.0, card text only; never drafts, whoever asks. Its links are absolute: `SITE_URL` when set (local dev sets it to the Vite server), else the address the request came in on, with the scheme a proxy forwards.
 
 PocketBase runs each handler in an isolated runtime: handlers must `require(`${__hooks}/phantos/lib.js`)` rather than close over outer variables. On a brand-new database `onBootstrap` runs before migrations, which is why the first DM is created by a migration.
 
@@ -128,9 +129,10 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - The chart's handles cancel their `pointerdown` (so a drag can't select text), which stops the browser sending `dblclick`. Count double presses with `secondPress()` in `AtlasChart` instead.
 - Places, realms and features are listed by `@rowid`: the order they were added is the order they are drawn, and the last one drawn is the one a click finds.
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).
-- Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step.
+- Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step. The same goes for the category labels the RSS feed prints (`CATEGORY_LABELS` there, `CATEGORIES` here); `testing/feed.test.ts` checks them.
+- The hooks module is CommonJS and the package is ESM, so a test can't import it: `testing/feed.test.ts` evaluates the file instead. That works while the module touches PocketBase's globals (`$app`, `$os`) only inside its functions.
 - Path alias `~/*` → `./app/*`. Route components are default exports.
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths.

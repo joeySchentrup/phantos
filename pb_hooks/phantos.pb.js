@@ -184,3 +184,17 @@ routerAdd('GET', '/api/phantos/search', (e) => {
   return e.json(200, result);
 });
 
+// ---------------------------------------------------------------------------
+// GET /api/phantos/feed.xml — the newest published lore as an RSS feed
+// ---------------------------------------------------------------------------
+
+routerAdd('GET', '/api/phantos/feed.xml', (e) => {
+  const lib = require(`${__hooks}/phantos/lib.js`);
+  const origin = lib.requestOrigin(e);
+
+  const xml = lib.loreFeed(lib.siteUrl(origin), origin + '/api/phantos/feed.xml');
+
+  e.response.header().set('Content-Type', 'application/rss+xml; charset=utf-8');
+  return e.string(200, xml);
+});
+

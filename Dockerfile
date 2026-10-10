@@ -28,7 +28,7 @@ COPY --from=build-env /app/build/client /pb/pb_public
 COPY pb_migrations /pb/pb_migrations
 COPY lore /pb/lore
 
-# server-side JS hooks (search, featured image, slugs and word counts)
+# server-side JS hooks (search, RSS feed, featured image, slugs and word counts)
 COPY pb_hooks /pb/pb_hooks
 
 EXPOSE 8080
@@ -37,9 +37,13 @@ EXPOSE 8080
 #
 # DM_EMAIL / DM_PASSWORD create the first Dungeon Master account if it doesn't
 # exist yet (or create one from the admin UI at /_/).
+#
+# SITE_URL is the site's public address for the links in the RSS feed. Empty,
+# the feed uses the address it was asked on.
 ENV LORE_DIR=/pb/lore \
     DM_EMAIL="" \
-    DM_PASSWORD=""
+    DM_PASSWORD="" \
+    SITE_URL=""
 
 # start PocketBase
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080"]
