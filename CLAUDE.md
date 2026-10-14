@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, and see what each hero holds in Electrum. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, post updates to a hero's page, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, and see what each hero holds in Electrum. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory and post updates to their page, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -30,12 +30,14 @@ npm run build      # Production SPA to build/client
 app/
 ├── routes/            # home, lore (archive + search), loreEntry, pantheon, pantheonEntry, chronicle, atlas,
 │                      #   heroes, heroEntry, electrum (routed, but not a section in the top bar),
+│                      #   players (join and sign in; linked from the footer, like dm),
 │                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor,
 │                      #   comingSoon (not routed; the face-down page for a section still to be built)
 ├── backend/
 │   ├── api.ts         # ALL PocketBase calls — touch this for data changes
 │   └── pocketbaseClient.ts
-├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, PantheonPicker, PantheonPlates, Timeline,
+├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, BackstoryEditor, PlayersPanel,
+│                      #   PantheonPicker, PantheonPlates, Timeline,
 │                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader,
 │                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator, …
 ├── lib/
@@ -43,14 +45,16 @@ app/
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
 │   ├── heroes.ts      # type line, epithet, class label
 │   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
+│   ├── players.ts     # whether a player writes for a hero, how heroes are offered to choose from
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools
-│   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify
+│   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify, with lore's own rules
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
-└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts
-pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts
+pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds, players
 pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
+csp.ts                 # the Content-Security-Policy the build writes into index.html (react-router.config.ts)
 ```
 
 ## Data Model (PocketBase Collections)
@@ -68,8 +72,12 @@ lore/                  # the original documents (seed source, copied into the im
   - Anyone can read eras and points. Only DMs can write them.
 - `heroes`: name, slug, player, species, class, subclass, background, alignment, faith, attribute, summary, backstory (markdown), portrait, published
   - Identity only — no stats (level included) or inventory. Same rules as lore: public reads published heroes, DMs write and see drafts.
+  - An approved player can read their own hero, draft or not, and update it; a hook keeps that update to `backstory`.
 - `hero_updates`: hero (relation, cascade delete), title (optional), body (markdown, 4,000 characters at most). The running list beneath a hero's backstory, newest first.
-  - Readable when the hero is published (or by a DM); only DMs write.
+  - Readable when the hero is published (or by a DM, or the hero's approved player). DMs write; the hero's approved player can post one, but only DMs edit or delete them.
+- `players`: auth collection for the people at the table. name, hero (relation), approved.
+  - Anyone can sign up, claiming a published hero; a sign-up is never approved, whatever it sends. Only DMs approve, change a player's hero or remove one, and a hero has one approved player at most.
+  - A player and the DMs read a player's record; DMs also see the email (`manageRule`). Deleting a hero empties its player's `hero`.
 - `electrum_accounts`: name, amount, spent, hero (relation, at most one account a hero)
   - The ledger. `name` is the player; `amount` is what is held, `spent` what has been spent, both whole and never negative.
   - An account with no `hero` waits for one: the hero editor offers it to a new hero. Deleting a hero empties `hero` and keeps the account.
@@ -90,7 +98,7 @@ lore/                  # the original documents (seed source, copied into the im
   - A forest or lake is one point (its heart) and a `spread` of 8–80; a range or river is a line of two points or more, with spread 0.
   - Places, realms and features are readable when they and their chart are published (or by a DM); only DMs write.
 - `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
-- `dungeon_masters`: auth collection for DMs. There is no public sign-up.
+- `dungeon_masters`: auth collection for DMs. There is no public sign-up (that is `players`).
 
 ## Server-side Hooks (`pb_hooks/`)
 
@@ -100,7 +108,10 @@ lore/                  # the original documents (seed source, copied into the im
   - recompute `word_count`;
   - fill a blank `summary` from the opening lines.
 - On every pantheon save: normalize line endings, make a unique slug, and fill a blank `summary`.
-- On every hero save: normalize the backstory's line endings, trim the identity fields, make a unique slug, and fill a blank `summary`.
+- On every hero save: normalize the backstory's line endings, trim the identity fields, make a unique slug, and fill a blank `summary`. A summary that was made from the backstory follows it; one written by hand stays.
+- On a hero update by a player: refuse any change but the backstory (`keepPlayerToBackstory`).
+- On a player sign-up (anyone but a DM or superuser): unapproved, and the hero must be published and have no approved player.
+- On every player save: collapse the name to a single line, and refuse a second approved player for a hero.
 - On every hero update save: normalize line endings and trim the heading and body.
 - On every electrum account and shop item save: collapse the name (and an item's description) to a single line.
 - On every era save: trim the text, and refuse an era that ends before it begins.
@@ -108,6 +119,7 @@ lore/                  # the original documents (seed source, copied into the im
 - On every chart save: trim the text, make a unique slug, and default the size to 1400 × 700.
 - On every place, realm and feature save: trim the names, round every coordinate to a whole chart unit and clamp it to the chart. A realm with fewer than three corners is refused, as is a range or river with fewer than two points or a forest or lake with more than one; `tone` is clamped to 0–5 and `spread` to 8–80.
 - On every lore, pantheon and hero save, `syncCardArt` drops `card_art` when the image changed (or went) without a new copy coming with it.
+- On every save in any collection, `checkUploadNames` refuses an upload whose name doesn't end in `.png`, `.jpg`, `.jpeg`, `.jfif`, `.webp` or `.gif`. PocketBase checks a file's content but serves it by the name the uploader chose, so an image named `x.js` would go out as a script from our own origin. A file field for anything but images needs its extensions added there.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
 - `GET /api/phantos/feed.xml`: the 50 newest published lore entries as RSS 2.0, card text only; never drafts, whoever asks. Its links are absolute: `SITE_URL` when set (local dev sets it to the Vite server), else the address the request came in on, with the scheme a proxy forwards.
 
@@ -129,10 +141,13 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - The chart's handles cancel their `pointerdown` (so a drag can't select text), which stops the browser sending `dblclick`. Count double presses with `secondPress()` in `AtlasChart` instead.
 - Places, realms and features are listed by `@rowid`: the order they were added is the order they are drawn, and the last one drawn is the one a click finds.
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).
+- Lore, backstories and hero updates are HTML-capable markdown that DMs read while signed in, so `renderLore()` (`app/lib/markdown.ts`) keeps them to laying out their own text: no `<style>`, forms or form controls, SVG or MathML; a `style` attribute keeps only `width`, `text-align` and `vertical-align`; a class only the markdown plugins' (`footnote-*`, `language-*`); no `data-*`. Loosen those rules there, deliberately, and extend `testing/markdown.test.ts`.
+- The Content-Security-Policy is a `<meta>` the build writes into `index.html` (`csp.ts`, from `buildEnd` in `react-router.config.ts`): scripts from our origin plus the hashes of React Router's inline ones, no `<style>` elements, forms only to our origin. A new third-party origin (a font, an API) has to be added in `csp.ts`. `npm run dev` doesn't apply it; a built copy served by PocketBase does.
 - Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step. The same goes for the category labels the RSS feed prints (`CATEGORY_LABELS` there, `CATEGORIES` here); `testing/feed.test.ts` checks them.
 - The hooks module is CommonJS and the package is ESM, so a test can't import it: `testing/feed.test.ts` evaluates the file instead. That works while the module touches PocketBase's globals (`$app`, `$os`) only inside its functions.
+- What a player may do is decided by the rules in `1791331200_players.js` and the hooks. `playsHero()` only decides what the site offers; it is not a permission check. Rules read `@request.auth.approved` from the database on each request, so an approval or a revoke takes hold at once; the site refreshes the player's own record once a page load (`refreshPlayer()`).
 - Path alias `~/*` → `./app/*`. Route components are default exports.
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.

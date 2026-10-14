@@ -284,13 +284,16 @@ export default function DmHeroEditor() {
   }
 
   const existingPortrait = record?.portrait && !removePortrait ? cardArtUrl(record, record.portrait, record.card_art) : "";
+  // As on the server: card text made from the backstory follows it; text written by hand stays.
+  const summary = draft.summary.trim();
+  const summaryFollows = !summary || summary === autoSummary(record?.backstory ?? "");
   const previewHero = {
     ...draft,
     id: record?.id,
     collectionId: record?.collectionId,
     slug: draft.slug || record?.slug,
     portrait: portraitFile ? "pending" : removePortrait ? "" : record?.portrait ?? "",
-    summary: draft.summary || autoSummary(draft.backstory),
+    summary: summaryFollows ? autoSummary(draft.backstory) : draft.summary,
   };
 
   return (
@@ -452,7 +455,7 @@ export default function DmHeroEditor() {
 
             <div>
               <label htmlFor="hero-summary" className="field-label">
-                Card text <span className="normal-case tracking-normal opacity-70">(optional — defaults to the opening lines)</span>
+                Card text <span className="normal-case tracking-normal opacity-70">(optional — made from the opening lines until you write your own)</span>
               </label>
               <textarea
                 id="hero-summary"

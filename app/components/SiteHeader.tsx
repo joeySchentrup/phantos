@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
 import { SECTIONS } from "~/lib/sections";
 import { useDungeonMaster } from "~/lib/useDungeonMaster";
+import { usePlayer } from "~/lib/usePlayer";
 
 /** Six points around a circle — one for each Primal Dragon. */
 function SixfoldMark({ className = "" }: { className?: string }) {
@@ -41,6 +42,8 @@ function SearchIcon({ className = "" }: { className?: string }) {
 export default function SiteHeader() {
   const navigate = useNavigate();
   const isDm = useDungeonMaster();
+  const player = usePlayer();
+  const playedHero = player?.approved ? player.expand?.hero : undefined;
   const [query, setQuery] = useState("");
 
   const onSearch = (event: React.FormEvent) => {
@@ -86,6 +89,23 @@ export default function SiteHeader() {
             </Link>
             <Link to="/dm" className="btn btn-ghost !px-3 !py-2 !text-[0.72rem]" title="Dungeon Master's desk">
               DM
+            </Link>
+          </div>
+        )}
+
+        {player && (
+          <div className="flex items-center gap-2">
+            {playedHero && (
+              <Link to={`/heroes/${playedHero.slug}`} className="btn btn-gold !px-3 !py-2 !text-[0.72rem]" title={playedHero.name}>
+                My Hero
+              </Link>
+            )}
+            <Link
+              to="/players"
+              className="btn btn-ghost !px-3 !py-2 !text-[0.72rem]"
+              title={player.approved ? "Your player account" : "Waiting for the Dungeon Master's approval"}
+            >
+              {player.approved ? "Player" : "Pending"}
             </Link>
           </div>
         )}

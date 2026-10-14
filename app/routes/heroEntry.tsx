@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import type { Route } from "./+types/heroEntry";
 import { fileUrl, getElectrumForHero, getHeroBySlug, listHeroUpdates } from "../backend/api";
+import BackstoryEditor from "../components/BackstoryEditor";
 import ElectrumBanner from "../components/ElectrumBanner";
 import HeroCard from "../components/HeroCard";
 import HeroUpdates from "../components/HeroUpdates";
 import LoreMarkdown from "../components/LoreMarkdown";
 import { classLabel, heroEpithet } from "../lib/heroes";
 import { ATTRIBUTES } from "../lib/lore";
+import { playsHero } from "../lib/players";
 import { useDungeonMaster } from "../lib/useDungeonMaster";
+import { usePlayer } from "../lib/usePlayer";
 import type { Hero, HeroUpdate } from "../types/hero";
 
 export function meta({}: Route.MetaArgs) {
@@ -27,11 +30,15 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 export default function HeroEntry() {
   const { slug = "" } = useParams();
   const isDm = useDungeonMaster();
+  const player = usePlayer();
+  // An approved player can see their own hero while it is a draft, so the hero is fetched again when that changes.
+  const playedHero = player?.approved ? player.hero : "";
   const [hero, setHero] = useState<Hero | null>(null);
   const [updates, setUpdates] = useState<HeroUpdate[] | null>(null);
   /** What the hero holds; null while loading, and for a hero with no electrum account. */
   const [electrum, setElectrum] = useState<number | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [editingBackstory, setEditingBackstory] = useState(false);
 
   const loadUpdates = useCallback(async (heroId: string) => {
     try {
@@ -46,6 +53,7 @@ export default function HeroEntry() {
     setStatus("loading");
     setUpdates(null);
     setElectrum(null);
+    setEditingBackstory(false);
     getHeroBySlug(slug)
       .then((record) => {
         if (cancelled) return;
@@ -65,7 +73,7 @@ export default function HeroEntry() {
     return () => {
       cancelled = true;
     };
-  }, [slug, isDm, loadUpdates]);
+  }, [slug, isDm, playedHero, loadUpdates]);
 
   if (status === "missing" || status === "error") {
     return (
@@ -99,6 +107,7 @@ export default function HeroEntry() {
     );
   }
 
+  const ownsHero = playsHero(player, hero.id);
   const attribute = ATTRIBUTES[hero.attribute];
   const cls = classLabel(hero);
   const portraitLarge = hero.portrait ? fileUrl(hero, hero.portrait, "1600x0") : "";
@@ -170,41 +179,59 @@ export default function HeroEntry() {
           {electrum !== null && <ElectrumBanner heroName={hero.name} amount={electrum} />}
 
           <section aria-labelledby="backstory-heading">
-            <h2 id="backstory-heading" className="font-heading text-2xl font-bold text-[#f4e6c3] sm:text-3xl">
-              Backstory
-            </h2>
-            <div className="scroll mt-5 px-5 py-8 sm:px-10 sm:py-12">
-              {hero.portrait && (
-                <figure className={hero.backstory.trim() ? "mb-10" : ""}>
-                  <a href={portraitFull} target="_blank" rel="noopener noreferrer" className="block">
-                    <img
-                      src={portraitLarge}
-                      alt={`Portrait of ${hero.name}`}
-                      className="mx-auto max-h-[70vh] w-auto rounded border-4 border-[#2b1c10] shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
-                    />
-                  </a>
-                  <figcaption className="mt-3 text-center text-sm text-[#5b4527]">
-                    <a href={portraitFull} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                      Open full size
-                    </a>
-                  </figcaption>
-                </figure>
-              )}
-              {hero.backstory.trim() ? (
-                <div className="mx-auto max-w-[44rem]">
-                  <LoreMarkdown content={hero.backstory} title={hero.name} />
-                </div>
-              ) : (
-                <p className="text-center italic text-[#5b4527]">No backstory has been written yet.</p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="backstory-heading" className="font-heading text-2xl font-bold text-[#f4e6c3] sm:text-3xl">
+                Backstory
+              </h2>
+              {ownsHero && !editingBackstory && (
+                <button type="button" onClick={() => setEditingBackstory(true)} className="btn btn-ghost !px-3 !py-1.5 !text-[0.7rem]">
+                  Edit backstory
+                </button>
               )}
             </div>
+            {editingBackstory ? (
+              <BackstoryEditor
+                hero={hero}
+                onDone={(saved) => {
+                  if (saved) setHero(saved);
+                  setEditingBackstory(false);
+                }}
+              />
+            ) : (
+              <div className="scroll mt-5 px-5 py-8 sm:px-10 sm:py-12">
+                {hero.portrait && (
+                  <figure className={hero.backstory.trim() ? "mb-10" : ""}>
+                    <a href={portraitFull} target="_blank" rel="noopener noreferrer" className="block">
+                      <img
+                        src={portraitLarge}
+                        alt={`Portrait of ${hero.name}`}
+                        className="mx-auto max-h-[70vh] w-auto rounded border-4 border-[#2b1c10] shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+                      />
+                    </a>
+                    <figcaption className="mt-3 text-center text-sm text-[#5b4527]">
+                      <a href={portraitFull} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                        Open full size
+                      </a>
+                    </figcaption>
+                  </figure>
+                )}
+                {hero.backstory.trim() ? (
+                  <div className="mx-auto max-w-[44rem]">
+                    <LoreMarkdown content={hero.backstory} title={hero.name} />
+                  </div>
+                ) : (
+                  <p className="text-center italic text-[#5b4527]">No backstory has been written yet.</p>
+                )}
+              </div>
+            )}
           </section>
 
           <HeroUpdates
             heroId={hero.id}
             heroName={hero.name}
             updates={updates}
-            isDm={isDm}
+            canPost={isDm || ownsHero}
+            canEdit={isDm}
             onChanged={() => loadUpdates(hero.id)}
           />
         </div>

@@ -12,9 +12,11 @@ import type {
 } from '../types/lore';
 import type { Hero, HeroSummary, HeroUpdate, HeroUpdateInput } from '../types/hero';
 import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
+import type { Player, PlayerSignUp } from '../types/player';
 import pb, { POCKETBASE_URL } from './pocketbaseClient';
 
 const DM_COLLECTION = 'dungeon_masters';
+const PLAYER_COLLECTION = 'players';
 
 /** Everything a card needs. Bodies can run to 300 KB, so lists leave them out. */
 const SUMMARY_FIELDS =
@@ -335,6 +337,16 @@ export async function updateHero(id: string, data: FormData): Promise<Hero> {
     return await pb.collection('heroes').update<Hero>(id, data);
   } catch (error) {
     console.error('Error updating the hero:', error);
+    throw error;
+  }
+}
+
+/** The one change a player can make to their hero: the backstory. */
+export async function saveBackstory(heroId: string, backstory: string): Promise<Hero> {
+  try {
+    return await pb.collection('heroes').update<Hero>(heroId, { backstory }, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the backstory:', error);
     throw error;
   }
 }
@@ -887,6 +899,117 @@ export async function signInDungeonMaster(email: string, password: string): Prom
 
 export function signOutDungeonMaster(): void {
   pb.authStore.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Players
+// ---------------------------------------------------------------------------
+
+/**
+ * A player's own record comes with their hero's name and URL name, and no
+ * more of the hero: the auth store keeps the record in localStorage.
+ */
+const PLAYER_AUTH_QUERY = {
+  expand: 'hero',
+  fields: 'token,record.*,record.expand.hero.id,record.expand.hero.name,record.expand.hero.slug',
+};
+
+/** The signed-in player, as of their sign-in or last refresh; null for anyone else. */
+export function currentPlayer(): Player | null {
+  const record = pb.authStore.record;
+  if (!pb.authStore.isValid || record?.collectionName !== PLAYER_COLLECTION) return null;
+  return record as unknown as Player;
+}
+
+/** Calls `callback` whenever a player signs in or out, or their record is refreshed. Returns an unsubscribe function. */
+export function onPlayerChange(callback: (player: Player | null) => void): () => void {
+  return pb.authStore.onChange(() => callback(currentPlayer()));
+}
+
+let playerRefresh: Promise<void> | null = null;
+
+/**
+ * Fetches the signed-in player's record afresh, once a page load unless
+ * `force`d: a DM may have approved them, or given them another hero, since
+ * they signed in. An account that is gone signs them out.
+ */
+export function refreshPlayer(force = false): Promise<void> {
+  if (!currentPlayer()) return Promise.resolve();
+  if (!playerRefresh || force) {
+    playerRefresh = pb
+      .collection(PLAYER_COLLECTION)
+      .authRefresh({ ...PLAYER_AUTH_QUERY, requestKey: null })
+      .then(() => undefined)
+      .catch((error) => {
+        if (error?.status === 401 || error?.status === 403 || error?.status === 404) pb.authStore.clear();
+        else console.error('Error refreshing the player:', error);
+      });
+  }
+  return playerRefresh;
+}
+
+export async function signInPlayer(email: string, password: string): Promise<void> {
+  try {
+    await pb.collection(PLAYER_COLLECTION).authWithPassword(email.trim(), password, { ...PLAYER_AUTH_QUERY, requestKey: null });
+    // The record just arrived, so this page load needs no refresh of it.
+    playerRefresh = Promise.resolve();
+  } catch (error) {
+    console.error('Error signing in:', error);
+    throw error;
+  }
+}
+
+/** Opens an account that waits for a DM's approval, then signs into it. */
+export async function signUpPlayer(input: PlayerSignUp): Promise<void> {
+  try {
+    await pb.collection(PLAYER_COLLECTION).create(
+      {
+        name: input.name.trim(),
+        email: input.email.trim(),
+        password: input.password,
+        passwordConfirm: input.password,
+        hero: input.hero,
+      },
+      { requestKey: null }
+    );
+  } catch (error) {
+    console.error('Error signing up:', error);
+    throw error;
+  }
+  await signInPlayer(input.email, input.password);
+}
+
+export function signOutPlayer(): void {
+  pb.authStore.clear();
+}
+
+/** Every player, for the DM's desk: those waiting for approval first, then the newest. */
+export async function listPlayers(): Promise<Player[]> {
+  try {
+    return await pb.collection(PLAYER_COLLECTION).getFullList<Player>({ sort: 'approved,-created', requestKey: null });
+  } catch (error) {
+    console.error('Error listing players:', error);
+    throw error;
+  }
+}
+
+/** Approves a player, takes their approval away, or gives them another hero. */
+export async function savePlayer(id: string, data: Partial<Pick<Player, 'approved' | 'hero'>>): Promise<Player> {
+  try {
+    return await pb.collection(PLAYER_COLLECTION).update<Player>(id, data, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the player:', error);
+    throw error;
+  }
+}
+
+export async function deletePlayer(id: string): Promise<void> {
+  try {
+    await pb.collection(PLAYER_COLLECTION).delete(id);
+  } catch (error) {
+    console.error('Error removing the player:', error);
+    throw error;
+  }
 }
 
 /** PocketBase errors carry a friendly message plus per-field details. */

@@ -16,6 +16,7 @@ import {
 } from "../backend/api";
 import AttributeOrb from "../components/AttributeOrb";
 import CardArtPanel from "../components/CardArtPanel";
+import PlayersPanel from "../components/PlayersPanel";
 import { CATEGORIES, formatDate } from "../lib/lore";
 import type { FeaturedImage, LoreSummary } from "../types/lore";
 
@@ -52,7 +53,7 @@ function SignIn() {
             <h1 className="font-heading text-2xl font-bold text-[#f4e6c3]">Dungeon Master</h1>
           </div>
         </div>
-        <p className="mt-4 text-[#c9b78f]">Sign in to add lore, pantheon members and heroes, edit entries and choose the featured image.</p>
+        <p className="mt-4 text-[#c9b78f]">Sign in to add lore, pantheon members and heroes, edit entries, approve players and choose the featured image.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
@@ -93,6 +94,13 @@ function SignIn() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>
+        <p className="mt-5 text-center text-sm text-[#c9b78f]">
+          Playing in the campaign?{" "}
+          <Link to="/players" className="underline underline-offset-2 hover:text-[#f4e6c3]">
+            Players sign in here
+          </Link>
+          .
+        </p>
       </div>
     </main>
   );
@@ -374,6 +382,7 @@ export default function DungeonMaster() {
       </div>
 
       <div className="mt-8 space-y-8">
+        <PlayersPanel />
         <FeaturedImagePanel />
         <CardArtPanel />
         <LoreList />

@@ -50,6 +50,13 @@ onRecordUpdate((e) => {
   e.next();
 }, 'heroes');
 
+// The rules let an approved player update their own hero; this keeps them to the backstory.
+onRecordUpdateRequest((e) => {
+  const lib = require(`${__hooks}/phantos/lib.js`);
+  if (lib.isPlayer(e.auth)) lib.keepPlayerToBackstory(e.record);
+  e.next();
+}, 'heroes');
+
 onRecordCreate((e) => {
   require(`${__hooks}/phantos/lib.js`).prepareHeroUpdate(e.record);
   e.next();
@@ -59,6 +66,26 @@ onRecordUpdate((e) => {
   require(`${__hooks}/phantos/lib.js`).prepareHeroUpdate(e.record);
   e.next();
 }, 'hero_updates');
+
+// ---------------------------------------------------------------------------
+// Players: anyone can ask to join; a DM approves them, one player a hero
+// ---------------------------------------------------------------------------
+
+onRecordCreateRequest((e) => {
+  const lib = require(`${__hooks}/phantos/lib.js`);
+  if (!e.hasSuperuserAuth() && !lib.isDungeonMaster(e.auth)) lib.prepareSignUp(e.app, e.record);
+  e.next();
+}, 'players');
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePlayer(e.app, e.record);
+  e.next();
+}, 'players');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).preparePlayer(e.app, e.record);
+  e.next();
+}, 'players');
 
 // ---------------------------------------------------------------------------
 // Electrum: accounts and shop items keep tidy names
@@ -151,6 +178,20 @@ onRecordUpdate((e) => {
   require(`${__hooks}/phantos/lib.js`).prepareFeature(e.app, e.record);
   e.next();
 }, 'features');
+
+// ---------------------------------------------------------------------------
+// Uploads: every file is an image, and its name says so (every collection)
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).checkUploadNames(e.record);
+  e.next();
+});
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).checkUploadNames(e.record);
+  e.next();
+});
 
 // ---------------------------------------------------------------------------
 // Create the Dungeon Master from DM_EMAIL / DM_PASSWORD on first start

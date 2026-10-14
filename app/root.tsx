@@ -48,6 +48,9 @@ function Footer() {
           <a href={loreFeedUrl()} className="hover:text-[#f4e6c3] transition-colors">
             RSS feed
           </a>
+          <a href="/players" className="hover:text-[#f4e6c3] transition-colors">
+            Players
+          </a>
           <a href="/dm" className="hover:text-[#f4e6c3] transition-colors">
             Dungeon Master
           </a>

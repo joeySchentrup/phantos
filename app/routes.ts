@@ -12,6 +12,8 @@ export default [
   route("/heroes/:slug", "routes/heroEntry.tsx"),
   // Reached from a hero's page; deliberately not one of the SECTIONS in the top bar.
   route("/electrum", "routes/electrum.tsx"),
+  // Players join and sign in here; linked from the footer, like the DM's desk.
+  route("/players", "routes/players.tsx"),
 
   route("/dm", "routes/dm.tsx"),
   route("/dm/lore/new", "routes/dmEditor.tsx", { id: "dm-lore-new" }),

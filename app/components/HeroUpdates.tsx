@@ -10,12 +10,15 @@ interface HeroUpdatesProps {
   heroName: string;
   /** null while loading. */
   updates: HeroUpdate[] | null;
-  isDm: boolean;
+  /** A DM, or the hero's own approved player. */
+  canPost: boolean;
+  /** Editing and deleting updates stays with the DMs. */
+  canEdit: boolean;
   /** Called after an update is posted, edited or deleted. */
   onChanged: () => Promise<void>;
 }
 
-/** The DM's form for posting a new update, or editing one. */
+/** The form for posting a new update, or (for a DM) editing one. */
 function UpdateForm({
   heroId,
   editing,
@@ -105,7 +108,7 @@ function UpdateForm({
   );
 }
 
-export default function HeroUpdates({ heroId, heroName, updates, isDm, onChanged }: HeroUpdatesProps) {
+export default function HeroUpdates({ heroId, heroName, updates, canPost, canEdit, onChanged }: HeroUpdatesProps) {
   const [editing, setEditing] = useState<HeroUpdate | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -139,7 +142,7 @@ export default function HeroUpdates({ heroId, heroName, updates, isDm, onChanged
       </h2>
 
       <div className="mt-5 space-y-6">
-        {isDm && (
+        {canPost && (
           <div ref={formSlot}>
             {/* Keyed so switching between "new" and an edit starts the form afresh. */}
             <UpdateForm
@@ -178,7 +181,7 @@ export default function HeroUpdates({ heroId, heroName, updates, isDm, onChanged
                     </time>
                   </header>
                   <LoreMarkdown content={update.body} />
-                  {isDm && (
+                  {canEdit && (
                     <div className="mt-5 flex gap-2 border-t border-[#b59a64]/50 pt-3">
                       <button
                         type="button"

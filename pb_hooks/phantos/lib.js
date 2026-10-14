@@ -8,9 +8,14 @@
  */
 
 const DM_COLLECTION = 'dungeon_masters';
+const PLAYER_COLLECTION = 'players';
 
 function isDungeonMaster(auth) {
   return !!auth && auth.collection().name === DM_COLLECTION;
+}
+
+function isPlayer(auth) {
+  return !!auth && auth.collection().name === PLAYER_COLLECTION;
 }
 
 /** findFirstRecordByFilter throws when nothing matches; we want null. */
@@ -130,6 +135,36 @@ function syncCardArt(record, imageField) {
 }
 
 // ---------------------------------------------------------------------------
+// Uploads
+// ---------------------------------------------------------------------------
+
+/** What an uploaded file's name may end in. `.jfif` is how Windows sometimes saves a JPEG. */
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.gif'];
+
+/**
+ * Every file field on the site takes images, and PocketBase checks that from
+ * the file's content. It serves a file by its name, though, which the uploader
+ * chooses: an image named `x.js` would go out as a script from the site's own
+ * origin. So the name has to end like an image too. A file field for anything
+ * other than images needs its own extensions here.
+ */
+function checkUploadNames(record) {
+  const fields = record.collection().fields;
+  for (let i = 0; i < fields.length; i++) {
+    if (fields[i].type() !== 'file') continue;
+    const files = record.getUnsavedFiles(fields[i].getName());
+    for (let j = 0; j < files.length; j++) {
+      // The name it will be stored and served under, extension as uploaded.
+      const name = String(files[j].name || '');
+      const dot = name.lastIndexOf('.');
+      if (dot === -1 || IMAGE_EXTENSIONS.indexOf(name.slice(dot).toLowerCase()) === -1) {
+        throw new BadRequestError((files[j].originalName || name) + ' has to be a PNG, JPEG, WebP or GIF image.');
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Lore record upkeep
 // ---------------------------------------------------------------------------
 
@@ -193,8 +228,29 @@ function prepareHero(app, record) {
   const base = requested || slugify(record.getString('name'));
   record.set('slug', uniqueSlug(app, 'heroes', base, record.id));
 
-  if (!record.getString('summary').trim() && backstory) {
+  // Card text made from the backstory follows it when a player rewrites it;
+  // card text the DM wrote by hand stays.
+  const summary = record.getString('summary').trim();
+  if (!summary || summary === autoSummary(record.original().getString('backstory'))) {
     record.set('summary', autoSummary(backstory));
+  }
+}
+
+/**
+ * A player may change their hero's backstory and nothing else: every other
+ * field, the portrait included, has to come through the request as it was.
+ */
+function keepPlayerToBackstory(record) {
+  const original = record.original();
+  const fields = record.collection().fields;
+  for (let i = 0; i < fields.length; i++) {
+    const name = fields[i].getName();
+    const type = fields[i].type();
+    if (name === 'backstory' || type === 'autodate') continue;
+    const uploaded = type === 'file' && record.getUnsavedFiles(name).length > 0;
+    if (uploaded || record.getString(name) !== original.getString(name)) {
+      throw new ForbiddenError("A player can change only their hero's backstory.");
+    }
   }
 }
 
@@ -202,6 +258,42 @@ function prepareHero(app, record) {
 function prepareHeroUpdate(record) {
   record.set('title', record.getString('title').replace(/\s+/g, ' ').trim());
   record.set('body', normalizeNewlines(record.getString('body')).trim());
+}
+
+// ---------------------------------------------------------------------------
+// Players
+// ---------------------------------------------------------------------------
+
+/** The approved player of a hero, other than `excludeId`; null when there is none. */
+function heroPlayer(app, heroId, excludeId) {
+  return findOne(app, PLAYER_COLLECTION, 'hero = {:hero} && approved = true && id != {:id}', {
+    hero: heroId,
+    id: excludeId || '',
+  });
+}
+
+/**
+ * Someone asking to join waits for a DM, whatever the request says, and
+ * claims a hero of the party that no approved player plays yet.
+ */
+function prepareSignUp(app, record) {
+  record.set('approved', false);
+
+  const hero = findOne(app, 'heroes', 'id = {:id} && published = true', { id: record.getString('hero') });
+  if (!hero) throw new BadRequestError('Choose the hero you play.');
+  if (heroPlayer(app, hero.id, '')) {
+    throw new BadRequestError(hero.getString('name') + ' already has a player. If that is you, ask the Dungeon Master.');
+  }
+}
+
+/** A player's name is one line, and a hero has one approved player at most. */
+function preparePlayer(app, record) {
+  record.set('name', record.getString('name').replace(/\s+/g, ' ').trim());
+
+  const hero = record.getString('hero');
+  if (!hero || !record.getBool('approved')) return;
+  const other = heroPlayer(app, hero, record.id);
+  if (other) throw new BadRequestError(other.getString('name') + ' already plays that hero.');
 }
 
 // ---------------------------------------------------------------------------
@@ -631,14 +723,19 @@ function ensureDungeonMaster(app) {
 
 module.exports = {
   isDungeonMaster: isDungeonMaster,
+  isPlayer: isPlayer,
   slugify: slugify,
   plainText: plainText,
   countWords: countWords,
   autoSummary: autoSummary,
+  checkUploadNames: checkUploadNames,
   prepareLore: prepareLore,
   preparePantheon: preparePantheon,
   prepareHero: prepareHero,
+  keepPlayerToBackstory: keepPlayerToBackstory,
   prepareHeroUpdate: prepareHeroUpdate,
+  prepareSignUp: prepareSignUp,
+  preparePlayer: preparePlayer,
   prepareElectrumAccount: prepareElectrumAccount,
   prepareShopItem: prepareShopItem,
   prepareEra: prepareEra,
