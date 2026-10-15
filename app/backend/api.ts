@@ -14,6 +14,8 @@ import type { Hero, HeroSummary, HeroUpdate, HeroUpdateInput } from '../types/he
 import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
 import type { Song, SongEntry } from '../types/song';
 import type { Player, PlayerSignUp } from '../types/player';
+import type { CharacterSheet, SheetInput, SheetPatch } from '../types/sheet';
+import { normalizeSheet } from '../lib/fifth/sheet';
 import pb, { POCKETBASE_URL } from './pocketbaseClient';
 
 const DM_COLLECTION = 'dungeon_masters';
@@ -406,6 +408,80 @@ export async function deleteHeroUpdate(id: string): Promise<void> {
     await pb.collection('hero_updates').delete(id);
   } catch (error) {
     console.error('Error deleting the hero update:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Character sheets — private: the rules let only DMs and the hero's approved
+// player see one, so a guest's request finds nothing.
+// ---------------------------------------------------------------------------
+
+/** A sheet with the card of its hero, for the DM's desk. */
+const SHEET_QUERY = {
+  expand: 'hero',
+  fields: '*,' + HERO_FIELDS.split(',').map((field) => `expand.hero.${field}`).join(','),
+};
+
+/** A hero's sheet, or null when they have none or the visitor may not see it. */
+export async function getSheetForHero(heroId: string): Promise<CharacterSheet | null> {
+  try {
+    const result = await pb.collection('character_sheets').getList<CharacterSheet>(1, 1, {
+      filter: pb.filter('hero = {:hero}', { hero: heroId }),
+      skipTotal: true,
+      requestKey: null,
+    });
+    return result.items[0] ? normalizeSheet(result.items[0]) : null;
+  } catch (error) {
+    console.error('Error loading the character sheet:', error);
+    throw error;
+  }
+}
+
+/** Every sheet, with its hero: the DM's desk. */
+export async function listSheets(): Promise<CharacterSheet[]> {
+  try {
+    const records = await pb.collection('character_sheets').getFullList<CharacterSheet>({ ...SHEET_QUERY, requestKey: null });
+    return records.map(normalizeSheet);
+  } catch (error) {
+    console.error('Error listing character sheets:', error);
+    throw error;
+  }
+}
+
+/** Draws up a sheet; DMs only. */
+export async function createSheet(data: SheetInput): Promise<CharacterSheet> {
+  try {
+    return normalizeSheet(await pb.collection('character_sheets').create<CharacterSheet>(data));
+  } catch (error) {
+    console.error('Error creating the character sheet:', error);
+    throw error;
+  }
+}
+
+/**
+ * Saves the fields given and nothing else. A player sends only day-to-day
+ * fields, or a whole level from the wizard; the server refuses anything more.
+ */
+export async function saveSheet(id: string, patch: SheetPatch): Promise<CharacterSheet> {
+  try {
+    return normalizeSheet(await pb.collection('character_sheets').update<CharacterSheet>(id, patch));
+  } catch (error) {
+    console.error('Error saving the character sheet:', error);
+    throw error;
+  }
+}
+
+/** Calls the hero to a level; at or below their level, it withdraws the call. DMs only. */
+export async function queueLevelUp(id: string, targetLevel: number): Promise<CharacterSheet> {
+  return saveSheet(id, { target_level: targetLevel });
+}
+
+export async function deleteSheet(id: string): Promise<void> {
+  try {
+    await pb.collection('character_sheets').delete(id);
+  } catch (error) {
+    console.error('Error deleting the character sheet:', error);
     throw error;
   }
 }

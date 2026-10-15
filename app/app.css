@@ -1604,6 +1604,318 @@
     color: #24190e;
     overflow-wrap: break-word;
   }
+
+  /* ---------------------------------------------------------------------- */
+  /* Character sheets                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  /* The sheet: a parchment page in the spirit of the printed 5e sheet. */
+  .sheet {
+    position: relative;
+    border-radius: 0.6rem;
+    padding: 1rem;
+    background:
+      radial-gradient(120% 50% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 60%),
+      linear-gradient(180deg, #f4e9cd 0%, #ead9ae 100%);
+    color: #24190e;
+    border: 1px solid #8a6d3b;
+    box-shadow: 0 0 0 4px #2b1c10, 0 0 0 5px rgba(242, 193, 78, 0.4), 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 0 50px rgba(140, 100, 40, 0.22);
+  }
+  @media (min-width: 640px) {
+    .sheet { padding: 1.5rem; }
+  }
+
+  /* The name plate across the top: the character, and who and what they are. */
+  .sheet__plate {
+    display: grid;
+    gap: 0.75rem 1.25rem;
+    border: 1px solid #8a6d3b;
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(226, 207, 159, 0.5));
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.35);
+  }
+  @media (min-width: 768px) {
+    .sheet__plate { grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr); align-items: center; }
+  }
+  .sheet__name {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(1.4rem, 3.5vw, 2rem);
+    line-height: 1.1;
+    color: #3b1206;
+  }
+  .sheet__facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem 1rem;
+  }
+  @media (min-width: 640px) {
+    .sheet__facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  .sheet__fact {
+    border-bottom: 1px solid rgba(138, 109, 59, 0.55);
+    padding-bottom: 0.1rem;
+    font-size: 0.98rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* Small capitals under (or over) a value, as the printed sheet labels its boxes. */
+  .sheet-label {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #5b4527;
+  }
+
+  .sheet-section {
+    border: 1px solid #8a6d3b;
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.85rem 0.85rem;
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .sheet-section__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(138, 109, 59, 0.45);
+    padding-bottom: 0.35rem;
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #5a1a0a;
+  }
+
+  /* A boxed number: AC, initiative, speed, hit points. */
+  .sheet-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-width: 0;
+    border: 1px solid #8a6d3b;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.4rem;
+    background: rgba(255, 255, 255, 0.35);
+    text-align: center;
+  }
+  .sheet-box__value {
+    font-family: "Spectral SC", "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    line-height: 1.1;
+    font-variant-numeric: lining-nums tabular-nums;
+    color: #24190e;
+  }
+
+  /* An ability: its modifier large, its score in the oval beneath. */
+  .sheet-ability {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid #8a6d3b;
+    border-radius: 0.6rem 0.6rem 1.4rem 1.4rem;
+    padding: 0.45rem 0.4rem 0.55rem;
+    background: rgba(255, 255, 255, 0.35);
+    text-align: center;
+  }
+  .sheet-ability__mod {
+    font-family: "Spectral SC", "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .sheet-ability__score {
+    margin-top: 0.15rem;
+    min-width: 2.6rem;
+    border: 1px solid #8a6d3b;
+    border-radius: 999px;
+    background: #f7eed6;
+    padding: 0 0.5rem;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  /* A row of the saves or skills list: the proficiency mark, the bonus, the name. */
+  .sheet-row {
+    display: grid;
+    grid-template-columns: 0.85rem 2.4rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.4rem;
+    border-bottom: 1px solid rgba(138, 109, 59, 0.25);
+    padding: 0.18rem 0;
+    font-size: 0.95rem;
+  }
+  .sheet-row:last-child { border-bottom: 0; }
+  .sheet-row__bonus {
+    border-bottom: 1px solid rgba(138, 109, 59, 0.6);
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  /* The mark beside a save or skill: hollow, proficient, or expertise. */
+  .sheet-check {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 999px;
+    border: 1.5px solid #5b4527;
+    background: transparent;
+  }
+  .sheet-check--proficient { background: #5b4527; }
+  .sheet-check--expert {
+    background: #5a1a0a;
+    border-color: #5a1a0a;
+    box-shadow: 0 0 0 2px #f4e9cd, 0 0 0 3.5px #5a1a0a;
+  }
+
+  /* A pip that can be spent and recovered: hit dice, death saves, slots, uses. */
+  .sheet-pip {
+    display: inline-block;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 999px;
+    border: 1.5px solid #5b4527;
+    background: rgba(255, 255, 255, 0.55);
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  button.sheet-pip:hover:not(:disabled) { transform: scale(1.12); }
+  button.sheet-pip:disabled { cursor: default; }
+  .sheet-pip--used {
+    background: #5b4527;
+    box-shadow: inset 0 0 0 2px #f4e9cd;
+  }
+  .sheet-pip--failure.sheet-pip--used { background: #8a1b0d; border-color: #8a1b0d; }
+
+  /* Inputs on the parchment. */
+  .sheet-input {
+    width: 100%;
+    border: 1px solid #8a6d3b;
+    border-radius: 0.35rem;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 0.3rem 0.5rem;
+    color: #24190e;
+    font-size: 0.95rem;
+  }
+  .sheet-input:focus { outline: 2px solid #b9781a; outline-offset: 1px; }
+  .sheet-stepper {
+    display: inline-flex;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1px solid #8a6d3b;
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .sheet-stepper > button {
+    width: 1.9rem;
+    font-weight: 700;
+    color: #5a1a0a;
+  }
+  .sheet-stepper > button:hover:not(:disabled) { background: rgba(185, 120, 26, 0.18); }
+  .sheet-stepper > button:disabled { opacity: 0.4; }
+  .sheet-stepper > input {
+    width: 3.2rem;
+    border-inline: 1px solid #8a6d3b;
+    background: transparent;
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  .sheet-link {
+    color: #5a1a0a;
+    text-decoration: underline;
+    text-decoration-color: rgba(90, 26, 10, 0.35);
+    text-underline-offset: 2px;
+  }
+  .sheet-link:hover { text-decoration-color: currentColor; }
+  .sheet-button {
+    border: 1px solid #8a6d3b;
+    border-radius: 0.35rem;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 0.15rem 0.6rem;
+    font-family: "Cinzel", Georgia, serif;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #5a1a0a;
+  }
+  .sheet-button:hover:not(:disabled) { background: rgba(185, 120, 26, 0.2); }
+  .sheet-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* The call to take a level: a gilt plate above the sheet. */
+  .sheet-call {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 230, 160, 0.65);
+    padding: 0.9rem 1.1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 50%),
+      linear-gradient(115deg, #5a3206 0%, #9a5d0e 40%, #c8861c 55%, #9a5d0e 70%, #5a3206 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 30px rgba(200, 130, 30, 0.25);
+    color: #fff6dc;
+    text-shadow: 0 1px 2px rgba(40, 18, 2, 0.7);
+  }
+
+  /* One choice in the level-up wizard: a card that lights when chosen. */
+  .wizard-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    border: 1px solid rgba(242, 193, 78, 0.22);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    background: rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .wizard-option:hover { border-color: rgba(242, 193, 78, 0.5); }
+  .wizard-option--chosen {
+    border-color: #f2c14e;
+    background: rgba(242, 193, 78, 0.12);
+  }
+  .wizard-option--disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+/* A sheet prints as a sheet: the site around it goes, and the parchment turns to paper. */
+@media print {
+  @page { margin: 10mm; }
+  body:has(.sheet-page) {
+    background: #fff !important;
+    color: #000;
+  }
+  body:has(.sheet-page) > header,
+  body:has(.sheet-page) > footer,
+  body:has(.sheet-page) footer,
+  body:has(.sheet-page) header,
+  body:has(.sheet-page) nav,
+  .no-print {
+    display: none !important;
+  }
+  .sheet {
+    border: 0;
+    box-shadow: none;
+    background: #fff;
+    padding: 0;
+  }
+  .sheet-section,
+  .sheet-ability,
+  .sheet-box {
+    break-inside: avoid;
+    background: #fff;
+  }
 }
 
 @keyframes eq {

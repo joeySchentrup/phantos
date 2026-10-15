@@ -290,6 +290,105 @@ function prepareSong(app, record) {
 }
 
 // ---------------------------------------------------------------------------
+// Character sheets
+// ---------------------------------------------------------------------------
+
+// What a player changes at the table, and what only a DM changes. Every
+// other field is the build, which a player changes only by taking a level.
+// Mirrored by app/lib/fifth/fields.ts; testing/sheet.test.ts keeps them in step.
+const SHEET_DAY_FIELDS = [
+  'current_hp',
+  'temp_hp',
+  'hit_dice_used',
+  'ac',
+  'inspiration',
+  'uses_spent',
+  'slots_used',
+  'spells_prepared',
+  'attacks',
+  'money',
+  'death_saves',
+  'equipment',
+  'conditions',
+  'notes',
+];
+const SHEET_DM_FIELDS = ['hero', 'target_level'];
+
+function sortKeys(value) {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (value && typeof value === 'object') {
+    const out = {};
+    Object.keys(value)
+      .sort()
+      .forEach((key) => (out[key] = sortKeys(value[key])));
+    return out;
+  }
+  return value;
+}
+
+/**
+ * A field's value as text that doesn't depend on how it was written: JSON
+ * with its keys in order and no spaces, else the trimmed text. PocketBase
+ * writes a request's JSON back out with its keys sorted, but the stored text
+ * keeps the order it was saved in.
+ */
+function canonicalJson(text) {
+  const raw = String(text == null ? '' : text).trim();
+  try {
+    return JSON.stringify(sortKeys(JSON.parse(raw)));
+  } catch (err) {
+    return raw;
+  }
+}
+
+/**
+ * A player changes the day-to-day fields freely. The build changes only in
+ * a save that takes the next level, and only up to the level the DM has
+ * called them to. Whose sheet it is, and that call, are the DM's alone.
+ */
+function keepPlayerToSheet(record) {
+  const original = record.original();
+  const fields = record.collection().fields;
+  let buildChanged = false;
+  for (let i = 0; i < fields.length; i++) {
+    const name = fields[i].getName();
+    if (fields[i].type() === 'autodate' || SHEET_DAY_FIELDS.indexOf(name) >= 0) continue;
+    if (canonicalJson(record.getString(name)) === canonicalJson(original.getString(name))) continue;
+    if (SHEET_DM_FIELDS.indexOf(name) >= 0) {
+      throw new ForbiddenError('Only the Dungeon Master says whose sheet this is and the level they are called to.');
+    }
+    buildChanged = true;
+  }
+  if (!buildChanged) return;
+
+  const was = original.getInt('level');
+  const now = record.getInt('level');
+  const called = original.getInt('target_level');
+  if (now !== was + 1) throw new ForbiddenError('Your build changes only by taking the next level.');
+  if (now > called) throw new ForbiddenError('The Dungeon Master has not called you to level ' + now + ' yet.');
+}
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, Math.round(Number(n) || 0)));
+}
+
+/** Every sheet save: tidy text, and hit points, Hit Dice and death saves inside the sheet's limits. */
+function prepareSheet(record) {
+  record.set('equipment', normalizeNewlines(record.getString('equipment')).trim());
+  record.set('notes', normalizeNewlines(record.getString('notes')).trim());
+  record.set('conditions', record.getString('conditions').replace(/\s+/g, ' ').trim());
+
+  record.set('hit_dice_used', clamp(record.getInt('hit_dice_used'), 0, record.getInt('level')));
+  const maxHp = record.getInt('max_hp');
+  if (maxHp > 0) record.set('current_hp', clamp(record.getInt('current_hp'), 0, maxHp));
+
+  const saves = readJson(record, 'death_saves');
+  if (saves && typeof saves === 'object') {
+    record.set('death_saves', { successes: clamp(saves.successes, 0, 3), failures: clamp(saves.failures, 0, 3) });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Players
 // ---------------------------------------------------------------------------
 
@@ -764,6 +863,9 @@ module.exports = {
   keepPlayerToBackstory: keepPlayerToBackstory,
   prepareHeroUpdate: prepareHeroUpdate,
   prepareSong: prepareSong,
+  canonicalJson: canonicalJson,
+  keepPlayerToSheet: keepPlayerToSheet,
+  prepareSheet: prepareSheet,
   prepareSignUp: prepareSignUp,
   preparePlayer: preparePlayer,
   prepareElectrumAccount: prepareElectrumAccount,

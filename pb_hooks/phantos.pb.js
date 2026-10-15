@@ -68,6 +68,27 @@ onRecordUpdate((e) => {
 }, 'hero_updates');
 
 // ---------------------------------------------------------------------------
+// Character sheets: private to the DMs and the hero's player, who changes
+// the build only by taking a level the DM called them to
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareSheet(e.record);
+  e.next();
+}, 'character_sheets');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareSheet(e.record);
+  e.next();
+}, 'character_sheets');
+
+onRecordUpdateRequest((e) => {
+  const lib = require(`${__hooks}/phantos/lib.js`);
+  if (lib.isPlayer(e.auth)) lib.keepPlayerToSheet(e.record);
+  e.next();
+}, 'character_sheets');
+
+// ---------------------------------------------------------------------------
 // Songs: slug, tidy title and credit, lyrics keep their line breaks
 // ---------------------------------------------------------------------------
 

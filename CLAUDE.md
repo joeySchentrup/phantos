@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, see what each hero holds in Electrum, and listen to the campaign's Songs with their lyrics. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory and post updates to their page, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, add songs, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, see what each hero holds in Electrum, and listen to the campaign's Songs with their lyrics. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory, post updates to their page, and keep the hero's private character sheet, taking each level the DM calls them to in a level-up wizard, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, draw up character sheets and call heroes to a level, add songs, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -29,7 +29,8 @@ npm run build      # Production SPA to build/client
 ```
 app/
 ├── routes/            # home, lore (archive + search), loreEntry, pantheon, pantheonEntry, chronicle, atlas,
-│                      #   heroes, heroEntry, electrum (routed, but not a section in the top bar),
+│                      #   heroes, heroLayout (loads the hero; the Lore / Character Sheet tabs), heroEntry, heroSheet,
+│                      #   electrum (routed, but not a section in the top bar),
 │                      #   songsLayout (the player around songs and songEntry), songs, songEntry,
 │                      #   players (join and sign in; linked from the footer, like dm),
 │                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor, dmSongEditor,
@@ -41,7 +42,8 @@ app/
 │                      #   PantheonPicker, PantheonPlates, Timeline,
 │                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader,
 │                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator,
-│                      #   SongPlayer (the provider, the <audio> element and the player panel), …
+│                      #   SongPlayer (the provider, the <audio> element and the player panel),
+│                      #   HeroTabs, CharacterSheet, SheetFields, LevelUpWizard, SheetBuildEditor, QueueLevelUp, LevelUpPanel, …
 ├── lib/
 │   ├── lore.ts        # categories/attributes, levels, title + snippet helpers
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
@@ -49,13 +51,18 @@ app/
 │   ├── songs.ts       # the play queue's rules: posting order, shuffle, next/previous; durations
 │   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
 │   ├── players.ts     # whether a player writes for a hero, how heroes are offered to choose from
+│   ├── fifth/         # the 5e rules engine: pure and tested. Classes (the Bard in full, the rest in outline), species,
+│                      #   feats, spell lists, the sheet's maths, and the level-up planner. See docs/fifth-edition-rules.md
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools
 │   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify, with lore's own rules
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
-└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts, song.ts
-pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds, players
-pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts, song.ts, sheet.ts, fifth.ts
+docs/                  # fifth-edition-rules.md: how to fill in more classes, species, feats and spells
+pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds, players,
+                       #   character sheets + Daymond's sheet
+pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep,
+                       #   the players' guards (backstory only; a sheet's build only by a called level), first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
 csp.ts                 # the Content-Security-Policy the build writes into index.html (react-router.config.ts)
 ```
@@ -74,10 +81,15 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - `timeline_points`: text (255 characters at most), year, circa. Short notes pinned to a year; anything longer is lore.
   - Anyone can read eras and points. Only DMs can write them.
 - `heroes`: name, slug, player, species, class, subclass, background, alignment, faith, attribute, summary, backstory (markdown), portrait, published
-  - Identity only — no stats (level included) or inventory. Same rules as lore: public reads published heroes, DMs write and see drafts.
+  - Identity only — no stats (level included) or inventory; those are on the hero's `character_sheets` record. Same rules as lore: public reads published heroes, DMs write and see drafts.
   - An approved player can read their own hero, draft or not, and update it; a hook keeps that update to `backstory`.
 - `hero_updates`: hero (relation, cascade delete), title (optional), body (markdown, 4,000 characters at most). The running list beneath a hero's backstory, newest first.
   - Readable when the hero is published (or by a DM, or the hero's approved player). DMs write; the hero's approved player can post one, but only DMs edit or delete them.
+- `character_sheets`: a hero's 5e sheet, one a hero (relation, cascade delete, unique). Never public: only DMs and the hero's approved player read or update one; only DMs create or delete one.
+  - The build: level, class, subclass, species (rules keys, like `bard`, `lore`, `variant-aasimar`), max_hp, and json abilities, saves, skills, proficiencies, defenses, features, feats, spellcasting, level_log.
+  - Day to day: current_hp, temp_hp, hit_dice_used, ac, inspiration, notes, equipment, conditions, and json uses_spent, slots_used, spells_prepared, attacks, money, death_saves.
+  - `target_level` is the level the DM has called the hero to; nothing is waiting while it is at or below `level`. It and `hero` are the DM's alone.
+  - `level_log` lists each level taken: date, hit points gained and how, and the choices as an ordered list (PocketBase stores a json object's keys sorted).
 - `players`: auth collection for the people at the table. name, hero (relation), approved.
   - Anyone can sign up, claiming a published hero; a sign-up is never approved, whatever it sends. Only DMs approve, change a player's hero or remove one, and a hero has one approved player at most.
   - A player and the DMs read a player's record; DMs also see the email (`manageRule`). Deleting a hero empties its player's `hero`.
@@ -119,6 +131,8 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - On a player sign-up (anyone but a DM or superuser): unapproved, and the hero must be published and have no approved player.
 - On every player save: collapse the name to a single line, and refuse a second approved player for a hero.
 - On every hero update save: normalize line endings and trim the heading and body.
+- On every character sheet save: normalize line endings in the notes and equipment, collapse the conditions to one line, and keep `current_hp` within `max_hp`, `hit_dice_used` within the level and each death save count within 0–3 (`prepareSheet`).
+- On a character sheet update by a player (`keepPlayerToSheet`): the day-to-day fields change freely; any other change must come in a save that raises `level` by exactly one and not past `target_level`; `hero` and `target_level` never change. Fields are compared as canonical JSON (`canonicalJson`), so the same value written with its keys in another order isn't a change.
 - On every song save: collapse the title and credit to a single line, make a unique slug, round `duration`, and normalize the lyrics' line endings (keeping the line breaks, dropping trailing spaces).
 - On every electrum account and shop item save: collapse the name (and an item's description) to a single line.
 - On every era save: trim the text, and refuse an era that ends before it begins.
@@ -155,8 +169,12 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step. The same goes for the category labels the RSS feed prints (`CATEGORY_LABELS` there, `CATEGORIES` here); `testing/feed.test.ts` checks them.
 - The hooks module is CommonJS and the package is ESM, so a test can't import it: `testing/feed.test.ts` evaluates the file instead. That works while the module touches PocketBase's globals (`$app`, `$os`) only inside its functions.
 - What a player may do is decided by the rules in `1791331200_players.js` and the hooks. `playsHero()` only decides what the site offers; it is not a permission check. Rules read `@request.auth.approved` from the database on each request, so an approval or a revoke takes hold at once; the site refreshes the player's own record once a page load (`refreshPlayer()`).
+- The 5e rules live in `app/lib/fifth/`, follow dnd5e.wikidot.com (the 2014 rules), and paraphrase it with a link rather than copying its text. Components show what the engine works out (modifiers, bonuses, passives, spell DC, a level's steps) and never do the sums themselves. Adding a class, species, feat or spell list: `docs/fifth-edition-rules.md`.
+- `SHEET_DAY_FIELDS` and `SHEET_DM_FIELDS` are written twice, in `pb_hooks/phantos/lib.js` (which decides) and `app/lib/fifth/fields.ts`; `testing/sheet.test.ts` keeps them in step and checks every column is in exactly one group. A new sheet column is part of the build unless it is added to the day-to-day list in both.
+- A player's edits on the sheet send only the fields they change (`saveSheet(id, { current_hp })`), and the wizard sends a whole level in one save (`applyLevelUp()`), so the hook can tell them apart. Calling a hero to a level and charging electrum for it are two requests; the panel says so when the charge fails.
+- The sheet's classes are `sheet-*` and the wizard's `wizard-*` in `app/app.css`. The only `@media print` block is the sheet's, scoped by `:has(.sheet-page)`; mark anything that shouldn't print with `no-print`.
 - Path alias `~/*` → `./app/*`. Route components are default exports.
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), `/songs` (play one and let it run into the next, shuffle, open a song's lyrics while it plays; as a DM, add a song with an MP3 and lyrics), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), a hero's character sheet (as a guest: no tabs, and the sheet's address says it's private; as the player: a day-to-day edit, a rest, and the wizard for a level the DM called, then a build edit refused from the console; as a DM: a call to a level with and without electrum, "Edit the build", and the desk's Character sheets panel), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), `/songs` (play one and let it run into the next, shuffle, open a song's lyrics while it plays; as a DM, add a song with an MP3 and lyrics), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.

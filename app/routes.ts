@@ -9,7 +9,12 @@ export default [
   route("/pantheon", "routes/pantheon.tsx"),
   route("/pantheon/:slug", "routes/pantheonEntry.tsx"),
   route("/heroes", "routes/heroes.tsx"),
-  route("/heroes/:slug", "routes/heroEntry.tsx"),
+  // A hero's lore page and their private character sheet share the hero, and
+  // the tabs between them.
+  layout("routes/heroLayout.tsx", [
+    route("/heroes/:slug", "routes/heroEntry.tsx"),
+    route("/heroes/:slug/sheet", "routes/heroSheet.tsx"),
+  ]),
   // One player for the list and every song's page, so a song keeps playing
   // from the list into its lyrics; leaving the section stops it.
   layout("routes/songsLayout.tsx", [

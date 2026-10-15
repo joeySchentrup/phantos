@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/heroEntry";
-import { fileUrl, getElectrumForHero, getHeroBySlug, listHeroUpdates } from "../backend/api";
+import { fileUrl, getElectrumForHero, listHeroUpdates } from "../backend/api";
 import BackstoryEditor from "../components/BackstoryEditor";
 import ElectrumBanner from "../components/ElectrumBanner";
 import HeroCard from "../components/HeroCard";
@@ -9,10 +9,8 @@ import HeroUpdates from "../components/HeroUpdates";
 import LoreMarkdown from "../components/LoreMarkdown";
 import { classLabel, heroEpithet } from "../lib/heroes";
 import { ATTRIBUTES } from "../lib/lore";
-import { playsHero } from "../lib/players";
-import { useDungeonMaster } from "../lib/useDungeonMaster";
-import { usePlayer } from "../lib/usePlayer";
-import type { Hero, HeroUpdate } from "../types/hero";
+import type { HeroUpdate } from "../types/hero";
+import { useHero } from "./heroLayout";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "Heroes — Phantos" }];
@@ -28,16 +26,11 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 }
 
 export default function HeroEntry() {
-  const { slug = "" } = useParams();
-  const isDm = useDungeonMaster();
-  const player = usePlayer();
-  // An approved player can see their own hero while it is a draft, so the hero is fetched again when that changes.
-  const playedHero = player?.approved ? player.hero : "";
-  const [hero, setHero] = useState<Hero | null>(null);
+  // The layout loads the hero, and shows the missing and loading pages.
+  const { hero, setHero, isDm, ownsHero } = useHero();
   const [updates, setUpdates] = useState<HeroUpdate[] | null>(null);
   /** What the hero holds; null while loading, and for a hero with no electrum account. */
   const [electrum, setElectrum] = useState<number | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "missing" | "error">("loading");
   const [editingBackstory, setEditingBackstory] = useState(false);
 
   const loadUpdates = useCallback(async (heroId: string) => {
@@ -48,81 +41,30 @@ export default function HeroEntry() {
     }
   }, []);
 
+  // The updates and the electrum follow the hero; the page doesn't wait for them.
   useEffect(() => {
     let cancelled = false;
-    setStatus("loading");
+    document.title = `${hero.name} — Phantos`;
     setUpdates(null);
     setElectrum(null);
     setEditingBackstory(false);
-    getHeroBySlug(slug)
-      .then((record) => {
-        if (cancelled) return;
-        setHero(record);
-        setStatus("ready");
-        document.title = `${record.name} — Phantos`;
-        // The updates and the electrum follow; the page doesn't wait for them.
-        loadUpdates(record.id);
-        getElectrumForHero(record.id)
-          .then((account) => !cancelled && setElectrum(account ? account.amount : null))
-          .catch(() => {});
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setStatus(error?.status === 404 ? "missing" : "error");
-      });
+    loadUpdates(hero.id);
+    getElectrumForHero(hero.id)
+      .then((account) => !cancelled && setElectrum(account ? account.amount : null))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [slug, isDm, playedHero, loadUpdates]);
+    // Fetched again when the visitor changes, like the hero: drafts' updates appear for the DM and the player.
+  }, [hero.id, hero.name, isDm, ownsHero, loadUpdates]);
 
-  if (status === "missing" || status === "error") {
-    return (
-      <main className="mx-auto max-w-2xl px-4 pt-24 text-center">
-        <p className="eyebrow">The Party</p>
-        <h1 className="font-heading mt-3 text-4xl font-bold gold-text">
-          {status === "missing" ? "No such hero" : "The heroes are unreachable"}
-        </h1>
-        <p className="mt-4 text-lg text-[#c9b78f]">
-          {status === "missing"
-            ? "No hero by that name is in the party — they may have been renamed or withdrawn."
-            : "Please try again in a moment."}
-        </p>
-        <Link to="/heroes" className="btn btn-gold mt-8">
-          Meet the heroes
-        </Link>
-      </main>
-    );
-  }
-
-  if (status === "loading" || !hero) {
-    return (
-      <main className="mx-auto grid max-w-7xl gap-10 px-4 pt-10 sm:px-6 lg:grid-cols-[18.5rem_1fr]">
-        <div className="skeleton mx-auto aspect-[59/86] w-full max-w-[16rem] rounded-2xl lg:max-w-none" />
-        <div className="space-y-4">
-          <div className="skeleton h-5 w-40 rounded" />
-          <div className="skeleton h-12 w-3/4 rounded" />
-          <div className="skeleton mt-8 h-[28rem] rounded-xl" />
-        </div>
-      </main>
-    );
-  }
-
-  const ownsHero = playsHero(player, hero.id);
   const attribute = ATTRIBUTES[hero.attribute];
   const cls = classLabel(hero);
   const portraitLarge = hero.portrait ? fileUrl(hero, hero.portrait, "1600x0") : "";
   const portraitFull = hero.portrait ? fileUrl(hero, hero.portrait) : "";
 
   return (
-    <main className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mt-6 text-sm text-[#c9b78f]">
-        <Link to="/heroes" className="hover:text-[#f4e6c3]">
-          Heroes
-        </Link>
-        <span className="mx-2 opacity-50">/</span>
-        <span>{hero.name}</span>
-      </nav>
-
+    <>
       {/* Phones read name → card and details → backstory → updates; wide
           screens keep the card in a sticky column beside them. */}
       <div className="mt-6 grid gap-8 lg:grid-cols-[18.5rem_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10">
@@ -236,6 +178,6 @@ export default function HeroEntry() {
           />
         </div>
       </div>
-    </main>
+    </>
   );
 }
