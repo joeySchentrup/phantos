@@ -52,6 +52,11 @@ describe("contentSecurityPolicy", () => {
     const elsewhere = contentSecurityPolicy([], "http://localhost:8090/");
     expect(directive(elsewhere, "connect-src")).toEqual(["'self'", "http://localhost:8090"]);
     expect(directive(elsewhere, "img-src")).toContain("http://localhost:8090");
+    expect(directive(elsewhere, "media-src")).toEqual(["'self'", "http://localhost:8090", "blob:"]);
+  });
+
+  it("plays songs from our own origin and previews new ones as blobs, and nothing else", () => {
+    expect(directive(contentSecurityPolicy([]), "media-src")).toEqual(["'self'", "blob:"]);
   });
 
   it("lists a script that appears twice once", () => {

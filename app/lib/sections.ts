@@ -38,6 +38,12 @@ export const SECTIONS: Section[] = [
     live: true,
     blurb: "The party: who they are, where they came from, and what has become of them.",
   },
+  {
+    path: "/songs",
+    label: "Songs",
+    live: true,
+    blurb: "The campaign's songs, to play straight through, shuffled, or one at a time with their lyrics.",
+  },
 ];
 
 export function sectionFor(pathname: string): Section | undefined {

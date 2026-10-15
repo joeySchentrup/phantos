@@ -13,10 +13,10 @@ const { checkUploadNames } = loadHooks();
 class BadRequestError extends Error {}
 
 /** A record of a collection with a text field and the given file fields, holding these unsaved uploads. */
-function record(uploads: Record<string, string[]>) {
+function record(uploads: Record<string, string[]>, collection = "lore") {
   const fields = [{ name: "title", type: "text" }, ...Object.keys(uploads).map((name) => ({ name, type: "file" }))];
   return {
-    collection: () => ({ fields: fields.map((f) => ({ getName: () => f.name, type: () => f.type })) }),
+    collection: () => ({ name: collection, fields: fields.map((f) => ({ getName: () => f.name, type: () => f.type })) }),
     getUnsavedFiles: (field: string) =>
       (uploads[field] ?? []).map((name) => ({ name, originalName: name.replace(/_[a-z0-9]{10}(?=\.|$)/, "") })),
   };
@@ -43,6 +43,21 @@ describe("checkUploadNames", () => {
   it("names the file it refused", () => {
     vi.stubGlobal("BadRequestError", BadRequestError);
     expect(() => checkUploadNames(record({ portrait: ["sneaky_abc123defg.js"] }))).toThrow("sneaky.js has to be a PNG, JPEG, WebP or GIF image.");
+  });
+
+  it("lets a song's audio be an MP3, and nothing else", () => {
+    vi.stubGlobal("BadRequestError", BadRequestError);
+    expect(() => checkUploadNames(record({ audio: ["ballad_abc123defg.mp3", "hymn_abc123defg.MP3"] }, "songs"))).not.toThrow();
+    expect(() => checkUploadNames(record({ audio: ["ballad_abc123defg.png"] }, "songs"))).toThrow("ballad.png has to be an MP3.");
+    for (const name of ["x_abc123defg.js", "x_abc123defg.html", "x_abc123defg.svg", "x_abc123defg"]) {
+      expect(() => checkUploadNames(record({ audio: [name] }, "songs"))).toThrow(BadRequestError);
+    }
+  });
+
+  it("still wants an image everywhere else, even a field called audio", () => {
+    vi.stubGlobal("BadRequestError", BadRequestError);
+    expect(() => checkUploadNames(record({ cover: ["ballad_abc123defg.mp3"] }, "lore"))).toThrow("ballad.mp3 has to be a PNG, JPEG, WebP or GIF image.");
+    expect(() => checkUploadNames(record({ audio: ["ballad_abc123defg.mp3"] }, "heroes"))).toThrow(BadRequestError);
   });
 
   it("leaves records without uploads alone", () => {

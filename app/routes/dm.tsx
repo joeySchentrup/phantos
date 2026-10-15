@@ -369,6 +369,9 @@ export default function DungeonMaster() {
           <Link to="/dm/heroes/new" className="btn btn-ghost" title="Add a hero to the party">
             + Hero
           </Link>
+          <Link to="/dm/songs/new" className="btn btn-ghost" title="Add a song">
+            + Song
+          </Link>
           <Link to="/chronicle#desk" className="btn btn-ghost" title="Add eras and points to the timeline">
             Chronicle
           </Link>

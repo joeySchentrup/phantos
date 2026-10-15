@@ -68,6 +68,20 @@ onRecordUpdate((e) => {
 }, 'hero_updates');
 
 // ---------------------------------------------------------------------------
+// Songs: slug, tidy title and credit, lyrics keep their line breaks
+// ---------------------------------------------------------------------------
+
+onRecordCreate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareSong(e.app, e.record);
+  e.next();
+}, 'songs');
+
+onRecordUpdate((e) => {
+  require(`${__hooks}/phantos/lib.js`).prepareSong(e.app, e.record);
+  e.next();
+}, 'songs');
+
+// ---------------------------------------------------------------------------
 // Players: anyone can ask to join; a DM approves them, one player a hero
 // ---------------------------------------------------------------------------
 
@@ -180,7 +194,7 @@ onRecordUpdate((e) => {
 }, 'features');
 
 // ---------------------------------------------------------------------------
-// Uploads: every file is an image, and its name says so (every collection)
+// Uploads: every file is an image (a song's audio an MP3), and its name says so
 // ---------------------------------------------------------------------------
 
 onRecordCreate((e) => {

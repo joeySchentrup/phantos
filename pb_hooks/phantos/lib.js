@@ -141,24 +141,33 @@ function syncCardArt(record, imageField) {
 /** What an uploaded file's name may end in. `.jfif` is how Windows sometimes saves a JPEG. */
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.gif'];
 
+/** File fields that take something other than images: `collection.field` → what their files may be. */
+const OTHER_UPLOADS = {
+  'songs.audio': { extensions: ['.mp3'], kind: 'an MP3' },
+};
+
+const IMAGES = { extensions: IMAGE_EXTENSIONS, kind: 'a PNG, JPEG, WebP or GIF image' };
+
 /**
- * Every file field on the site takes images, and PocketBase checks that from
- * the file's content. It serves a file by its name, though, which the uploader
- * chooses: an image named `x.js` would go out as a script from the site's own
- * origin. So the name has to end like an image too. A file field for anything
- * other than images needs its own extensions here.
+ * Every file field on the site takes images, except those in OTHER_UPLOADS,
+ * and PocketBase checks the content against the field's types. It serves a
+ * file by its name, though, which the uploader chooses: an image named `x.js`
+ * would go out as a script from the site's own origin. So the name has to end
+ * like what the field takes, too.
  */
 function checkUploadNames(record) {
-  const fields = record.collection().fields;
+  const collection = record.collection();
+  const fields = collection.fields;
   for (let i = 0; i < fields.length; i++) {
     if (fields[i].type() !== 'file') continue;
+    const allowed = OTHER_UPLOADS[collection.name + '.' + fields[i].getName()] || IMAGES;
     const files = record.getUnsavedFiles(fields[i].getName());
     for (let j = 0; j < files.length; j++) {
       // The name it will be stored and served under, extension as uploaded.
       const name = String(files[j].name || '');
       const dot = name.lastIndexOf('.');
-      if (dot === -1 || IMAGE_EXTENSIONS.indexOf(name.slice(dot).toLowerCase()) === -1) {
-        throw new BadRequestError((files[j].originalName || name) + ' has to be a PNG, JPEG, WebP or GIF image.');
+      if (dot === -1 || allowed.extensions.indexOf(name.slice(dot).toLowerCase()) === -1) {
+        throw new BadRequestError((files[j].originalName || name) + ' has to be ' + allowed.kind + '.');
       }
     }
   }
@@ -258,6 +267,26 @@ function keepPlayerToBackstory(record) {
 function prepareHeroUpdate(record) {
   record.set('title', record.getString('title').replace(/\s+/g, ' ').trim());
   record.set('body', normalizeNewlines(record.getString('body')).trim());
+}
+
+// ---------------------------------------------------------------------------
+// Song record upkeep
+// ---------------------------------------------------------------------------
+
+/**
+ * Single-line title and credit, a unique slug, and lyrics with clean line
+ * endings: their line breaks are the verse, so they are kept, only the blank
+ * edges and the spaces at the ends of lines go.
+ */
+function prepareSong(app, record) {
+  record.set('title', record.getString('title').replace(/\s+/g, ' ').trim());
+  record.set('credit', record.getString('credit').replace(/\s+/g, ' ').trim());
+  record.set('lyrics', normalizeNewlines(record.getString('lyrics')).replace(/[ \t]+$/gm, '').trim());
+  record.set('duration', Math.max(0, Math.round(record.getFloat('duration'))));
+
+  const requested = slugify(record.getString('slug'));
+  const base = requested || slugify(record.getString('title'));
+  record.set('slug', uniqueSlug(app, 'songs', base, record.id));
 }
 
 // ---------------------------------------------------------------------------
@@ -734,6 +763,7 @@ module.exports = {
   prepareHero: prepareHero,
   keepPlayerToBackstory: keepPlayerToBackstory,
   prepareHeroUpdate: prepareHeroUpdate,
+  prepareSong: prepareSong,
   prepareSignUp: prepareSignUp,
   preparePlayer: preparePlayer,
   prepareElectrumAccount: prepareElectrumAccount,

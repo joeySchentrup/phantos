@@ -47,6 +47,8 @@ export function contentSecurityPolicy(scripts: string[], api?: string): string {
     ["font-src", "'self'", "https://fonts.gstatic.com"],
     // Lore may show a picture from anywhere; the previews of a new upload are blobs.
     ["img-src", "'self'", pocketbase, "data:", "blob:", "https:"],
+    // Songs stream from PocketBase; a new upload is previewed (and measured) as a blob.
+    ["media-src", "'self'", pocketbase, "blob:"],
     ["connect-src", "'self'", pocketbase],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],

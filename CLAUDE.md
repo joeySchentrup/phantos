@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, and see what each hero holds in Electrum. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory and post updates to their page, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, see what each hero holds in Electrum, and listen to the campaign's Songs with their lyrics. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory and post updates to their page, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, add songs, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -30,8 +30,9 @@ npm run build      # Production SPA to build/client
 app/
 ├── routes/            # home, lore (archive + search), loreEntry, pantheon, pantheonEntry, chronicle, atlas,
 │                      #   heroes, heroEntry, electrum (routed, but not a section in the top bar),
+│                      #   songsLayout (the player around songs and songEntry), songs, songEntry,
 │                      #   players (join and sign in; linked from the footer, like dm),
-│                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor,
+│                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor, dmSongEditor,
 │                      #   comingSoon (not routed; the face-down page for a section still to be built)
 ├── backend/
 │   ├── api.ts         # ALL PocketBase calls — touch this for data changes
@@ -39,18 +40,20 @@ app/
 ├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, BackstoryEditor, PlayersPanel,
 │                      #   PantheonPicker, PantheonPlates, Timeline,
 │                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader,
-│                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator, …
+│                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator,
+│                      #   SongPlayer (the provider, the <audio> element and the player panel), …
 ├── lib/
 │   ├── lore.ts        # categories/attributes, levels, title + snippet helpers
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
 │   ├── heroes.ts      # type line, epithet, class label
+│   ├── songs.ts       # the play queue's rules: posting order, shuffle, next/previous; durations
 │   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
 │   ├── players.ts     # whether a player writes for a hero, how heroes are offered to choose from
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools
 │   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify, with lore's own rules
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
-└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts, song.ts
 pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds, players
 pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep, first-DM bootstrap
 lore/                  # the original documents (seed source, copied into the image)
@@ -97,6 +100,9 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - `features`: chart (relation, cascade delete), name, kind (mountains, forest, river, lake), points (json), spread, published
   - A forest or lake is one point (its heart) and a `spread` of 8–80; a range or river is a line of two points or more, with spread 0.
   - Places, realms and features are readable when they and their chart are published (or by a DM); only DMs write.
+- `songs`: title, slug, credit, audio (an MP3, 50 MB at most), duration (whole seconds; 0 = not known), lyrics (plain text, line breaks kept), published
+  - Same rules as lore: public reads published songs, DMs write and see drafts.
+  - Posting order (`created`) is the play order and the songs' numbering. `duration` is measured by the DM's browser when the MP3 is chosen.
 - `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
 - `dungeon_masters`: auth collection for DMs. There is no public sign-up (that is `players`).
 
@@ -113,6 +119,7 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - On a player sign-up (anyone but a DM or superuser): unapproved, and the hero must be published and have no approved player.
 - On every player save: collapse the name to a single line, and refuse a second approved player for a hero.
 - On every hero update save: normalize line endings and trim the heading and body.
+- On every song save: collapse the title and credit to a single line, make a unique slug, round `duration`, and normalize the lyrics' line endings (keeping the line breaks, dropping trailing spaces).
 - On every electrum account and shop item save: collapse the name (and an item's description) to a single line.
 - On every era save: trim the text, and refuse an era that ends before it begins.
 - On every point save: collapse the text to a single line.
@@ -134,6 +141,8 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - Cards get their picture from `cardArtUrl()` (card art, else the 480px thumbnail) and never a `srcset` of the original: at 2× density that picked the 1600px version and made the lists slow. Full pages use the 1600px thumbnail and link the original. Every editor that uploads an image must also send `card_art` from `tryMakeCardArt()` (`app/lib/cardArt.ts`); `CardArtPanel` on the DM desk fills in what's missing.
 - Changing a collection's fields through the local admin UI makes PocketBase write a migration file into `pb_migrations/`. Write schema changes as migrations by hand and don't commit generated ones.
 - Years are whole numbers: negative for BC, positive for AC (the Age of Concord). There is no year zero, so 0 always means "not set". Format and convert them with `app/lib/chronicle.ts`, never by hand.
+- Every file field takes images, named like images (`checkUploadNames` in the hooks), except those listed in `OTHER_UPLOADS` there: so far only `songs.audio`, which takes `.mp3`. A new non-image field needs its entry there, its `mimeTypes`, and, if the browser plays it from a blob, the CSP's `media-src` (`csp.ts`).
+- The Songs section has exactly one `<audio>` element, in `SongPlayerProvider` (mounted by `routes/songsLayout.tsx`). Pages play through `useSongPlayer()`, never an `<audio>` of their own (the DM editor's preview is outside the section). The queue's rules are pure functions in `app/lib/songs.ts` with tests.
 - Electrum is awarded and spent with `adjustElectrum()`, which sends PocketBase's `amount+` / `amount-` modifiers so the server does the sum. Only an outright correction writes `amount` itself.
 - The timeline's row heights are constants in `app/components/Timeline.tsx` that the `.tl-*` rules in `app/app.css` match. Change them together.
 - The Atlas positions everything by percentages of one box (`.atlas-sheet`), which carries the pan and zoom as a single transform. Names, pins, handles and stroke widths are scaled back by `1/z` so they hold their size; put that counter-scale on a wrapper, never on the pin itself, or it loses its hover scale.
@@ -150,4 +159,4 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), `/songs` (play one and let it run into the next, shuffle, open a song's lyrics while it plays; as a DM, add a song with an MP3 and lyrics), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.

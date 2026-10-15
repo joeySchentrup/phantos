@@ -12,6 +12,7 @@ import type {
 } from '../types/lore';
 import type { Hero, HeroSummary, HeroUpdate, HeroUpdateInput } from '../types/hero';
 import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pantheon';
+import type { Song, SongEntry } from '../types/song';
 import type { Player, PlayerSignUp } from '../types/player';
 import pb, { POCKETBASE_URL } from './pocketbaseClient';
 
@@ -530,6 +531,73 @@ export async function listLevelCosts(): Promise<LevelCost[]> {
     console.error('Error listing level up costs:', error);
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Songs
+// ---------------------------------------------------------------------------
+
+/** Everything the song list and the player need; the lyrics stay behind. */
+const SONG_FIELDS = 'id,collectionId,collectionName,slug,title,credit,audio,duration,published,created';
+
+/** Every song, in the order they were posted — the order they play in. */
+export async function listSongs(): Promise<Song[]> {
+  try {
+    return await pb.collection('songs').getFullList<Song>({ sort: 'created,id', fields: SONG_FIELDS, requestKey: null });
+  } catch (error) {
+    console.error('Error listing songs:', error);
+    throw error;
+  }
+}
+
+export async function getSongBySlug(slug: string): Promise<SongEntry> {
+  try {
+    return await pb.collection('songs').getFirstListItem<SongEntry>(pb.filter('slug = {:slug}', { slug }), { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the song:', error);
+    throw error;
+  }
+}
+
+export async function getSongById(id: string): Promise<SongEntry> {
+  try {
+    return await pb.collection('songs').getOne<SongEntry>(id, { requestKey: null });
+  } catch (error) {
+    console.error('Error fetching the song:', error);
+    throw error;
+  }
+}
+
+export async function createSong(data: FormData): Promise<SongEntry> {
+  try {
+    return await pb.collection('songs').create<SongEntry>(data);
+  } catch (error) {
+    console.error('Error creating the song:', error);
+    throw error;
+  }
+}
+
+export async function updateSong(id: string, data: FormData): Promise<SongEntry> {
+  try {
+    return await pb.collection('songs').update<SongEntry>(id, data);
+  } catch (error) {
+    console.error('Error updating the song:', error);
+    throw error;
+  }
+}
+
+export async function deleteSong(id: string): Promise<void> {
+  try {
+    await pb.collection('songs').delete(id);
+  } catch (error) {
+    console.error('Error deleting the song:', error);
+    throw error;
+  }
+}
+
+/** Where the browser streams a song's MP3 from. */
+export function songAudioUrl(song: Pick<Song, 'id' | 'collectionId' | 'collectionName' | 'audio'>): string {
+  return fileUrl(song, song.audio);
 }
 
 // ---------------------------------------------------------------------------
