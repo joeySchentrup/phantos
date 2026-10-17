@@ -1,10 +1,23 @@
 import type { ClassRules } from "~/types/fifth";
+import { ARTIFICER } from "./artificer";
+import { BARBARIAN } from "./barbarian";
 import { BARD } from "./bard";
-import { SKELETON_CLASSES } from "./skeleton";
+import { CLERIC } from "./cleric";
+import { DRUID } from "./druid";
+import { FIGHTER } from "./fighter";
+import { MONK } from "./monk";
+import { PALADIN } from "./paladin";
+import { RANGER } from "./ranger";
+import { ROGUE } from "./rogue";
+import { SORCERER } from "./sorcerer";
+import { WARLOCK } from "./warlock";
+import { WIZARD } from "./wizard";
 
 /** Every class the rules know, by key. A class with a `table` can take levels in the wizard. */
 export const CLASSES: Record<string, ClassRules> = Object.fromEntries(
-  [BARD, ...SKELETON_CLASSES].sort((a, b) => a.name.localeCompare(b.name)).map((rules) => [rules.key, rules])
+  [ARTIFICER, BARBARIAN, BARD, CLERIC, DRUID, FIGHTER, MONK, PALADIN, RANGER, ROGUE, SORCERER, WARLOCK, WIZARD]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((rules) => [rules.key, rules])
 );
 
 export function classRules(key: string): ClassRules | undefined {
@@ -23,4 +36,4 @@ export function canLevel(rules: ClassRules | undefined): rules is ClassRules & {
   return !!rules?.table?.length;
 }
 
-export { BARD };
+export { ARTIFICER, BARBARIAN, BARD, CLERIC, DRUID, FIGHTER, MONK, PALADIN, RANGER, ROGUE, SORCERER, WARLOCK, WIZARD };

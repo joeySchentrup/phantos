@@ -4,9 +4,10 @@
  */
 export * from "./core";
 export * from "./fields";
-export { CLASSES, BARD, canLevel, classKey, classRules } from "./classes";
+export * from "./classes";
 export { SPECIES, speciesKey, speciesName, speciesRules } from "./species";
 export { FEATS, featByKey } from "./feats";
 export { hasSpellList, spellByKey, spellLevelLabel, spellLink, spellName, spellsFor } from "./spells";
 export * from "./levelUp";
 export { normalizeSheet } from "./sheet";
+export { FIGHTING_STYLES, FIGHTER_STYLES, fightingStyleText } from "./fightingStyles";

@@ -1,0 +1,487 @@
+/**
+ * The Druid, in full: the level table, its features and all seven circles,
+ * from https://dnd5e.wikidot.com/druid. Feature text is a short paraphrase;
+ * the link has the rules as written.
+ *
+ * A prepared caster: the rows set cantrips and slots and leave spells known
+ * out, so the wizard asks for cantrips only and the player keeps the prepared
+ * list day to day. A circle's always-prepared spells come as `grants.spells`.
+ */
+import type { ClassLevelRow, ClassRules, SubclassRules } from "~/types/fifth";
+
+const TABLE: ClassLevelRow[] = [
+  { level: 1, proficiency: 2, cantrips: 2, slots: [2], features: ["druidic", "spellcasting"] },
+  { level: 2, proficiency: 2, cantrips: 2, slots: [3], features: ["wild-shape"] },
+  { level: 3, proficiency: 2, cantrips: 2, slots: [4, 2], features: [] },
+  { level: 4, proficiency: 2, cantrips: 3, slots: [4, 3], features: ["wild-shape"] },
+  { level: 5, proficiency: 3, cantrips: 3, slots: [4, 3, 2], features: [] },
+  { level: 6, proficiency: 3, cantrips: 3, slots: [4, 3, 3], features: [] },
+  { level: 7, proficiency: 3, cantrips: 3, slots: [4, 3, 3, 1], features: [] },
+  { level: 8, proficiency: 3, cantrips: 3, slots: [4, 3, 3, 2], features: ["wild-shape"] },
+  { level: 9, proficiency: 4, cantrips: 3, slots: [4, 3, 3, 3, 1], features: [] },
+  { level: 10, proficiency: 4, cantrips: 4, slots: [4, 3, 3, 3, 2], features: [] },
+  { level: 11, proficiency: 4, cantrips: 4, slots: [4, 3, 3, 3, 2, 1], features: [] },
+  { level: 12, proficiency: 4, cantrips: 4, slots: [4, 3, 3, 3, 2, 1], features: [] },
+  { level: 13, proficiency: 5, cantrips: 4, slots: [4, 3, 3, 3, 2, 1, 1], features: [] },
+  { level: 14, proficiency: 5, cantrips: 4, slots: [4, 3, 3, 3, 2, 1, 1], features: [] },
+  { level: 15, proficiency: 5, cantrips: 4, slots: [4, 3, 3, 3, 2, 1, 1, 1], features: [] },
+  { level: 16, proficiency: 5, cantrips: 4, slots: [4, 3, 3, 3, 2, 1, 1, 1], features: [] },
+  { level: 17, proficiency: 6, cantrips: 4, slots: [4, 3, 3, 3, 2, 1, 1, 1, 1], features: [] },
+  { level: 18, proficiency: 6, cantrips: 4, slots: [4, 3, 3, 3, 3, 1, 1, 1, 1], features: ["timeless-body", "beast-spells"] },
+  { level: 19, proficiency: 6, cantrips: 4, slots: [4, 3, 3, 3, 3, 2, 1, 1, 1], features: [] },
+  { level: 20, proficiency: 6, cantrips: 4, slots: [4, 3, 3, 3, 3, 2, 2, 1, 1], features: ["wild-shape", "archdruid"] },
+];
+
+const CIRCLES: Record<string, SubclassRules> = {
+  land: {
+    key: "land",
+    name: "Circle of the Land",
+    slug: "druid:land",
+    source: "Player's Handbook",
+    summary: "Keepers of the old rites: an extra cantrip, slots regained on a short rest, and spells drawn from the land that made you.",
+    features: [
+      {
+        level: 2,
+        key: "land-bonus-cantrip",
+        name: "Bonus Cantrip",
+        text: "You learn one more druid cantrip of your choice. It doesn't count against your cantrips known.",
+      },
+      {
+        level: 2,
+        key: "natural-recovery",
+        name: "Natural Recovery",
+        text: "During a short rest, recover spent spell slots whose levels add up to no more than half your druid level (rounded up), none of them 6th level or higher.",
+        uses: { max: 1, per: "long" },
+      },
+      {
+        level: 3,
+        key: "land-circle-spells",
+        name: "Circle Spells",
+        text: "The land where you joined the circle gives you spells at 3rd, 5th, 7th and 9th level. They are always prepared, don't count against the spells you prepare, and count as druid spells for you.",
+        grants: {
+          choose: {
+            count: 1,
+            options: [
+              {
+                key: "land-arctic",
+                name: "Arctic",
+                text: "3rd: hold person, spike growth. 5th: sleet storm, slow. 7th: freedom of movement, ice storm. 9th: commune with nature, cone of cold.",
+              },
+              {
+                key: "land-coast",
+                name: "Coast",
+                text: "3rd: mirror image, misty step. 5th: water breathing, water walk. 7th: control water, freedom of movement. 9th: conjure elemental, scrying.",
+              },
+              {
+                key: "land-desert",
+                name: "Desert",
+                text: "3rd: blur, silence. 5th: create food and water, protection from energy. 7th: blight, hallucinatory terrain. 9th: insect plague, wall of stone.",
+              },
+              {
+                key: "land-forest",
+                name: "Forest",
+                text: "3rd: barkskin, spider climb. 5th: call lightning, plant growth. 7th: divination, freedom of movement. 9th: commune with nature, tree stride.",
+              },
+              {
+                key: "land-grassland",
+                name: "Grassland",
+                text: "3rd: invisibility, pass without trace. 5th: daylight, haste. 7th: divination, freedom of movement. 9th: dream, insect plague.",
+              },
+              {
+                key: "land-mountain",
+                name: "Mountain",
+                text: "3rd: spider climb, spike growth. 5th: lightning bolt, meld into stone. 7th: stone shape, stoneskin. 9th: passwall, wall of stone.",
+              },
+              {
+                key: "land-swamp",
+                name: "Swamp",
+                text: "3rd: darkness, Melf's acid arrow. 5th: water walk, stinking cloud. 7th: freedom of movement, locate creature. 9th: insect plague, scrying.",
+              },
+              {
+                key: "land-underdark",
+                name: "Underdark",
+                text: "3rd: spider climb, web. 5th: gaseous form, stinking cloud. 7th: greater invisibility, stone shape. 9th: cloudkill, insect plague.",
+              },
+            ],
+          },
+        },
+      },
+      {
+        level: 6,
+        key: "lands-stride",
+        name: "Land's Stride",
+        text: "Nonmagical difficult terrain costs you no extra movement, nonmagical plants neither slow nor harm you, and you have advantage on saves against plants made or moved by magic to hinder you.",
+      },
+      {
+        level: 10,
+        key: "natures-ward",
+        name: "Nature's Ward",
+        text: "Elementals and fey can't charm or frighten you, and you are immune to poison and disease.",
+      },
+      {
+        level: 14,
+        key: "natures-sanctuary",
+        name: "Nature's Sanctuary",
+        text: "A beast or plant creature that attacks you must first make a Wisdom save against your spell save DC or pick another target, or miss. One that succeeds is immune for 24 hours.",
+      },
+    ],
+  },
+  moon: {
+    key: "moon",
+    name: "Circle of the Moon",
+    slug: "druid:moon",
+    source: "Player's Handbook",
+    summary: "Guardians of the wild who live in beast form: Wild Shape as a bonus action, fiercer forms, and elementals at 10th level.",
+    features: [
+      {
+        level: 2,
+        key: "combat-wild-shape",
+        name: "Combat Wild Shape",
+        text: "You can use Wild Shape as a bonus action, and while transformed you can spend a spell slot as a bonus action to regain 1d8 hit points per level of the slot.",
+      },
+      {
+        level: 2,
+        key: "circle-forms",
+        name: "Circle Forms",
+        text: "Your Wild Shape can take a beast of challenge rating 1, ignoring the Max. CR column but keeping the other limits. From 6th level the limit is your druid level divided by 3, rounded down.",
+      },
+      {
+        level: 6,
+        key: "primal-strike",
+        name: "Primal Strike",
+        text: "Your attacks in beast form count as magical for overcoming resistance and immunity to nonmagical attacks and damage.",
+      },
+      {
+        level: 10,
+        key: "elemental-wild-shape",
+        name: "Elemental Wild Shape",
+        text: "You can spend two uses of Wild Shape at once to become an air, earth, fire or water elemental.",
+      },
+      {
+        level: 14,
+        key: "thousand-forms",
+        name: "Thousand Forms",
+        text: "You can cast alter self at will.",
+      },
+    ],
+  },
+  dreams: {
+    key: "dreams",
+    name: "Circle of Dreams",
+    slug: "druid:dreams",
+    source: "Xanathar's Guide to Everything",
+    summary: "Druids of the Feywild's courts: a pool of healing dice, a hidden camp, fey paths, and journeys through dreams.",
+    features: [
+      {
+        level: 2,
+        key: "balm-of-the-summer-court",
+        name: "Balm of the Summer Court",
+        text: "You have a pool of d6s equal to your druid level. As a bonus action, spend up to half your druid level of them: an ally within 120 feet regains hit points equal to the roll and gains 1 temporary hit point per die. The pool refills on a long rest.",
+      },
+      {
+        level: 6,
+        key: "hearth-of-moonlight-and-shadow",
+        name: "Hearth of Moonlight and Shadow",
+        text: "At the start of a rest, raise an invisible 30-foot sphere: inside it you and your allies have +5 to Stealth and Perception checks, and your fires can't be seen from outside.",
+      },
+      {
+        level: 10,
+        key: "hidden-paths",
+        name: "Hidden Paths",
+        text: "As a bonus action, teleport up to 60 feet to a space you can see; or as an action, teleport a willing creature you touch up to 30 feet.",
+        uses: { max: "wis", per: "long" },
+      },
+      {
+        level: 14,
+        key: "walker-in-dreams",
+        name: "Walker in Dreams",
+        text: "When you finish a short rest, cast dream, scrying or teleportation circle (to where you last took a long rest on this plane) without a slot or material components.",
+        uses: { max: 1, per: "long" },
+      },
+    ],
+  },
+  shepherd: {
+    key: "shepherd",
+    name: "Circle of the Shepherd",
+    slug: "druid:shepherd",
+    source: "Xanathar's Guide to Everything",
+    summary: "Wardens of beasts and fey: the speech of the woods, spirit totems that shelter allies, and summoned creatures that fight harder.",
+    features: [
+      {
+        level: 2,
+        key: "speech-of-the-woods",
+        name: "Speech of the Woods",
+        text: "You learn Sylvan, beasts understand what you say, and you can make out what their sounds and movements mean.",
+      },
+      {
+        level: 2,
+        key: "spirit-totem",
+        name: "Spirit Totem",
+        text: "As a bonus action, call a spirit to a point within 60 feet for a minute. Its 30-foot aura is a bear's (temporary hit points and advantage on Strength checks and saves), a hawk's (your reaction gives an attack advantage; advantage on Perception) or a unicorn's (advantage on checks to find creatures; your healing spells heal everyone in the aura too).",
+        uses: { max: 1, per: "short" },
+      },
+      {
+        level: 6,
+        key: "mighty-summoner",
+        name: "Mighty Summoner",
+        text: "A beast or fey your spells summon or create has 2 extra hit points per Hit Die, and its natural weapons count as magical.",
+      },
+      {
+        level: 10,
+        key: "guardian-spirit",
+        name: "Guardian Spirit",
+        text: "A beast or fey you summoned or created that ends its turn in your Spirit Totem's aura regains hit points equal to half your druid level.",
+      },
+      {
+        level: 14,
+        key: "faithful-summons",
+        name: "Faithful Summons",
+        text: "When you drop to 0 hit points or are incapacitated against your will, four beasts of challenge rating 2 or lower appear within 20 feet, as conjure animals cast at 9th level, and guard you for an hour without concentration.",
+        uses: { max: 1, per: "long" },
+      },
+    ],
+  },
+  spores: {
+    key: "spores",
+    name: "Circle of Spores",
+    slug: "druid:spores",
+    source: "Guildmaster's Guide to Ravnica, Tasha's Cauldron of Everything",
+    summary: "Druids who find beauty in decay: necrotic spores, a fungal second skin in place of a beast form, and corpses raised for an hour.",
+    features: [
+      {
+        level: 2,
+        key: "spores-circle-spells-2",
+        name: "Circle Spells",
+        text: "You learn the chill touch cantrip. Your circle's spells are always prepared, don't count against the spells you prepare, and count as druid spells for you.",
+        grants: { spells: ["chill-touch"] },
+      },
+      {
+        level: 2,
+        key: "halo-of-spores",
+        name: "Halo of Spores",
+        text: "When a creature you can see starts its turn within 10 feet of you or moves there, your reaction deals it 1d4 necrotic damage unless it makes a Constitution save. The die becomes a d6 at 6th level, a d8 at 10th and a d10 at 14th.",
+      },
+      {
+        level: 2,
+        key: "symbiotic-entity",
+        name: "Symbiotic Entity",
+        text: "As an action, spend a use of Wild Shape to gain 4 temporary hit points per druid level; for 10 minutes, or until they are gone, your Halo of Spores rolls its die twice and your melee weapon attacks deal an extra 1d6 necrotic damage.",
+      },
+      {
+        level: 3,
+        key: "spores-circle-spells-3",
+        name: "Circle Spells",
+        text: "You always have blindness/deafness and gentle repose prepared.",
+        grants: { spells: ["blindness-deafness", "gentle-repose"] },
+      },
+      {
+        level: 5,
+        key: "spores-circle-spells-5",
+        name: "Circle Spells",
+        text: "You always have animate dead and gaseous form prepared.",
+        grants: { spells: ["animate-dead", "gaseous-form"] },
+      },
+      {
+        level: 6,
+        key: "fungal-infestation",
+        name: "Fungal Infestation",
+        text: "When a Small or Medium beast or humanoid dies within 10 feet of you, your reaction raises it as a zombie with 1 hit point for an hour. It takes its turn after yours and can only make one melee attack.",
+        uses: { max: "wis", per: "long" },
+      },
+      {
+        level: 7,
+        key: "spores-circle-spells-7",
+        name: "Circle Spells",
+        text: "You always have blight and confusion prepared.",
+        grants: { spells: ["blight", "confusion"] },
+      },
+      {
+        level: 9,
+        key: "spores-circle-spells-9",
+        name: "Circle Spells",
+        text: "You always have cloudkill and contagion prepared.",
+        grants: { spells: ["cloudkill", "contagion"] },
+      },
+      {
+        level: 10,
+        key: "spreading-spores",
+        name: "Spreading Spores",
+        text: "While Symbiotic Entity is active, as a bonus action hurl your spores into a 10-foot cube within 30 feet for a minute: a creature that enters it or starts its turn there takes your Halo of Spores damage unless it makes a Constitution save. Your Halo of Spores reaction is off while the cube lasts.",
+      },
+      {
+        level: 14,
+        key: "fungal-body",
+        name: "Fungal Body",
+        text: "You can't be blinded, deafened, frightened or poisoned, and a critical hit against you is a normal hit unless you are incapacitated.",
+      },
+    ],
+  },
+  stars: {
+    key: "stars",
+    name: "Circle of Stars",
+    slug: "druid:stars",
+    source: "Tasha's Cauldron of Everything",
+    summary: "Readers of the constellations: a star map that casts guiding bolt, a luminous starry form, and omens of weal and woe.",
+    features: [
+      {
+        level: 2,
+        key: "star-map",
+        name: "Star Map",
+        text: "A Tiny star chart that serves as your focus. While you hold it you know the guidance cantrip, always have guiding bolt prepared, and can cast guiding bolt without a slot a number of times equal to your proficiency bonus between long rests.",
+        grants: { spells: ["guidance", "guiding-bolt"] },
+      },
+      {
+        level: 2,
+        key: "starry-form",
+        name: "Starry Form",
+        text: "As a bonus action, spend a use of Wild Shape to glow with a constellation for 10 minutes: the Archer (a ranged spell attack for 1d8 + Wisdom radiant damage as a bonus action), the Chalice (a healing spell also heals you or a creature within 30 feet for 1d8 + Wisdom) or the Dragon (a 9 or lower on Intelligence and Wisdom checks and concentration saves counts as a 10).",
+      },
+      {
+        level: 6,
+        key: "cosmic-omen",
+        name: "Cosmic Omen",
+        text: "After a long rest, roll a die: on an even roll your reaction adds a d6 to a roll a creature within 30 feet is about to make, on an odd roll it subtracts one. You can do so a number of times equal to your proficiency bonus between long rests.",
+        uses: { max: "prof", per: "long" },
+      },
+      {
+        level: 10,
+        key: "twinkling-constellations",
+        name: "Twinkling Constellations",
+        text: "The Archer's and Chalice's 1d8 become 2d8, the Dragon gives you a 20-foot flying speed and hover, and you can change constellation at the start of each of your turns in Starry Form.",
+      },
+      {
+        level: 14,
+        key: "full-of-stars",
+        name: "Full of Stars",
+        text: "In your Starry Form you are partly incorporeal: resistance to bludgeoning, piercing and slashing damage.",
+      },
+    ],
+  },
+  wildfire: {
+    key: "wildfire",
+    name: "Circle of Wildfire",
+    slug: "druid:wildfire",
+    source: "Tasha's Cauldron of Everything",
+    summary: "Bonded to a spirit of flame: a wildfire spirit in place of a beast form, fire that heals and burns, and spells of both.",
+    features: [
+      {
+        level: 2,
+        key: "wildfire-circle-spells-2",
+        name: "Circle Spells",
+        text: "You always have burning hands and cure wounds prepared. Your circle's spells don't count against the spells you prepare, and count as druid spells for you.",
+        grants: { spells: ["burning-hands", "cure-wounds"] },
+      },
+      {
+        level: 2,
+        key: "summon-wildfire-spirit",
+        name: "Summon Wildfire Spirit",
+        text: "As an action, spend a use of Wild Shape to summon your wildfire spirit within 30 feet for an hour; creatures within 10 feet of where it appears take 2d6 fire damage on a failed Dexterity save. It takes its turn after yours and only Dodges unless your bonus action commands it.",
+      },
+      {
+        level: 3,
+        key: "wildfire-circle-spells-3",
+        name: "Circle Spells",
+        text: "You always have flaming sphere and scorching ray prepared.",
+        grants: { spells: ["flaming-sphere", "scorching-ray"] },
+      },
+      {
+        level: 5,
+        key: "wildfire-circle-spells-5",
+        name: "Circle Spells",
+        text: "You always have plant growth and revivify prepared.",
+        grants: { spells: ["plant-growth", "revivify"] },
+      },
+      {
+        level: 6,
+        key: "enhanced-bond",
+        name: "Enhanced Bond",
+        text: "While your spirit is summoned, a spell of yours that deals fire damage or heals adds a d8 to one of its rolls, and a spell with a range other than self can start from the spirit instead of you.",
+      },
+      {
+        level: 7,
+        key: "wildfire-circle-spells-7",
+        name: "Circle Spells",
+        text: "You always have aura of life and fire shield prepared.",
+        grants: { spells: ["aura-of-life", "fire-shield"] },
+      },
+      {
+        level: 9,
+        key: "wildfire-circle-spells-9",
+        name: "Circle Spells",
+        text: "You always have flame strike and mass cure wounds prepared.",
+        grants: { spells: ["flame-strike", "mass-cure-wounds"] },
+      },
+      {
+        level: 10,
+        key: "cauterizing-flames",
+        name: "Cauterizing Flames",
+        text: "When a Small or larger creature dies within 30 feet of you or your spirit, a spectral flame burns in its space for a minute; your reaction spends it to heal a creature that enters, or burn it, for 2d10 + your Wisdom modifier. Usable a number of times equal to your proficiency bonus between long rests.",
+        uses: { max: "prof", per: "long" },
+      },
+      {
+        level: 14,
+        key: "blazing-revival",
+        name: "Blazing Revival",
+        text: "When you drop to 0 hit points with your spirit within 120 feet, you can let the spirit drop to 0 instead: you regain half your hit points and stand up.",
+        uses: { max: 1, per: "long" },
+      },
+    ],
+  },
+};
+
+export const DRUID: ClassRules = {
+  key: "druid",
+  name: "Druid",
+  slug: "druid",
+  hitDie: 8,
+  saves: ["int", "wis"],
+  subclassLevel: 2,
+  subclassLabel: "Druid Circle",
+  asiLevels: [4, 8, 12, 16, 19],
+  caster: "prepared",
+  castingAbility: "wis",
+  skillChoices: {
+    count: 2,
+    from: ["arcana", "animal-handling", "insight", "medicine", "nature", "perception", "religion", "survival"],
+  },
+  proficiencies: {
+    armor: ["Light armor", "Medium armor", "Shields (not metal)"],
+    weapons: ["Clubs", "Daggers", "Darts", "Javelins", "Maces", "Quarterstaffs", "Scimitars", "Sickles", "Slings", "Spears"],
+    tools: ["Herbalism kit"],
+  },
+  table: TABLE,
+  subclasses: CIRCLES,
+  features: {
+    druidic: {
+      key: "druidic",
+      name: "Druidic",
+      text: "You know the secret tongue of druids, and can leave messages in it that only its speakers read. Others can tell a message is there with a DC 15 Wisdom (Perception) check, but need magic to read it.",
+    },
+    spellcasting: {
+      key: "spellcasting",
+      name: "Spellcasting",
+      text: "You prepare druid spells each day, your Wisdom modifier + your druid level of them, and cast them with Wisdom through a druidic focus. A prepared spell with the ritual tag can be cast as a ritual.",
+    },
+    "wild-shape": {
+      key: "wild-shape",
+      name: "Wild Shape",
+      text: "As an action, become a beast you have seen, for up to half your druid level in hours. At 2nd level, challenge rating 1/4 at most with no flying or swimming speed; at 4th, CR 1/2 with no flying speed; at 8th, CR 1 with no limits. Unlimited uses from 20th level.",
+      uses: { max: 2, per: "short" },
+    },
+    "timeless-body": {
+      key: "timeless-body",
+      name: "Timeless Body",
+      text: "You age a year for every ten that pass.",
+    },
+    "beast-spells": {
+      key: "beast-spells",
+      name: "Beast Spells",
+      text: "You can cast your druid spells in any Wild Shape form, with their verbal and somatic components but not their material ones.",
+    },
+    archdruid: {
+      key: "archdruid",
+      name: "Archdruid",
+      text: "Wild Shape has no limit on its uses, and your druid spells need no verbal or somatic components, nor any material component without a cost that isn't consumed, in either form.",
+    },
+  },
+};

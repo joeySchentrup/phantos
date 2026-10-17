@@ -51,7 +51,7 @@ app/
 │   ├── songs.ts       # the play queue's rules: posting order, shuffle, next/previous; durations
 │   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
 │   ├── players.ts     # whether a player writes for a hero, how heroes are offered to choose from
-│   ├── fifth/         # the 5e rules engine: pure and tested. Classes (the Bard in full, the rest in outline), species,
+│   ├── fifth/         # the 5e rules engine: pure and tested. All thirteen classes in full (every subclass), species,
 │                      #   feats, spell lists, the sheet's maths, and the level-up planner. See docs/fifth-edition-rules.md
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools

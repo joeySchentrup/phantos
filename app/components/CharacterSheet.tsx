@@ -285,7 +285,7 @@ export default function CharacterSheet({ sheet, hero, canEdit, onSave }: Charact
             {sheet.features.length ? (
               <ul className="space-y-3">
                 {sheet.features.map((feature, i) => {
-                  const max = usesMax(feature, sheet.abilities);
+                  const max = usesMax(feature, sheet);
                   const key = usesKey(feature);
                   return (
                     <li key={`${key}-${i}`}>

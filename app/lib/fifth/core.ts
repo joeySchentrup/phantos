@@ -3,7 +3,7 @@
  * Pure functions over a sheet; components show what these work out and
  * never do the sums themselves.
  */
-import type { Abilities, Ability, CharacterSheet, Skill, SheetFeature } from "~/types/sheet";
+import type { Ability, CharacterSheet, Skill, SheetFeature } from "~/types/sheet";
 
 export const WIKIDOT = "https://dnd5e.wikidot.com/";
 
@@ -133,10 +133,13 @@ export function spellAttack(sheet: Pick<CharacterSheet, "abilities" | "level" | 
 }
 
 /** How many times a feature can be used between rests; null when it isn't counted. */
-export function usesMax(feature: Pick<SheetFeature, "uses">, abilities: Abilities): number | null {
+export function usesMax(feature: Pick<SheetFeature, "uses">, sheet: Pick<CharacterSheet, "abilities" | "level">): number | null {
   if (!feature.uses) return null;
   const max = feature.uses.max;
-  return typeof max === "number" ? max : Math.max(1, modifier(abilities[max]));
+  if (typeof max === "number") return max;
+  if (max === "level") return Math.max(1, sheet.level);
+  if (max === "prof") return proficiencyBonus(sheet.level);
+  return Math.max(1, modifier(sheet.abilities[max]));
 }
 
 /** Today as YYYY-MM-DD where the player is, for the level log. */

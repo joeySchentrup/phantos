@@ -19,7 +19,7 @@ const lines = (text: string) =>
 /** A spell as written by the DM: its key when the rules know it, else the name as typed. */
 const spellKeyOf = (name: string) => (spellByKey(keyOf(name)) ? keyOf(name) : name);
 
-/** "2/long", "cha/short": a feature's uses, as typed. */
+/** "2/long", "cha/short", "level/short", "prof/long": a feature's uses, as typed. */
 function usesText(feature: SheetFeature): string {
   return feature.uses ? `${feature.uses.max}/${feature.uses.per}` : "";
 }
@@ -27,9 +27,9 @@ function usesText(feature: SheetFeature): string {
 function parseUses(text: string): SheetFeature["uses"] | undefined | null {
   const t = text.trim().toLowerCase();
   if (!t) return undefined;
-  const match = t.match(/^(\d+|str|dex|con|int|wis|cha)\s*\/\s*(short|long)$/);
+  const match = t.match(/^(\d+|str|dex|con|int|wis|cha|level|prof)\s*\/\s*(short|long)$/);
   if (!match) return null;
-  const max = /^\d+$/.test(match[1]) ? Number(match[1]) : (match[1] as Ability);
+  const max = /^\d+$/.test(match[1]) ? Number(match[1]) : (match[1] as Ability | "level" | "prof");
   return { max, per: match[2] as "short" | "long" };
 }
 

@@ -10,7 +10,9 @@
 import type {
   AsiChoice,
   Choices,
+  ClassFeature,
   ClassRules,
+  FeatureGrants,
   HpChoice,
   LevelStep,
   StepOption,
@@ -27,6 +29,7 @@ import {
   ABILITY_LABELS,
   averageHitDie,
   firstLevelHp,
+  keyOf,
   levelHp,
   MAX_LEVEL,
   modifier,
@@ -37,6 +40,7 @@ import {
   wikidot,
 } from "./core";
 import { featByKey } from "./feats";
+import { fightingStyleText } from "./fightingStyles";
 import { spellLink, spellName, spellsFor } from "./spells";
 import { speciesKey, speciesRules } from "./species";
 
@@ -92,16 +96,18 @@ function secretsAt(rules: ClassRules, level: number): number {
   return (rules.magicalSecrets ?? []).find((m) => m.level === level)?.count ?? 0;
 }
 
-/** A class feature as the sheet keeps it at a level: its die and its rest as they stand then. */
+/** A class feature as the sheet keeps it at a level: its die, its uses and its rest as they stand then. */
 export function classFeature(rules: ClassRules, key: string, level: number): SheetFeature | null {
   const feature = rules.features?.[key];
   if (!feature) return null;
   let die: number | undefined;
   let per = feature.uses?.per;
+  let max = feature.uses?.max;
   for (const step of feature.scale ?? []) {
     if (step.level > level) break;
     if (step.die) die = step.die;
     if (step.per) per = step.per;
+    if (step.max !== undefined) max = step.max;
   }
   const result: SheetFeature = {
     key,
@@ -111,8 +117,15 @@ export function classFeature(rules: ClassRules, key: string, level: number): She
     text: feature.text,
     link: wikidot(rules.slug),
   };
-  if (feature.uses && per) result.uses = { max: feature.uses.max, per };
+  if (feature.uses && per && max !== undefined) result.uses = { max, per };
   return result;
+}
+
+/** The class features in a row that give the hero something to choose or record. */
+function grantingFeatures(rules: ClassRules, level: number): ClassFeature[] {
+  return row(rules.table!, level)
+    .features.map((key) => rules.features?.[key])
+    .filter((feature): feature is ClassFeature => !!feature?.grants);
 }
 
 function subclassFeature(subclass: SubclassRules, feature: SubclassFeature): SheetFeature {
@@ -187,44 +200,78 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
   /** Steps that make the hero proficient in skills, whose answers expertise can then pick from. */
   const skillStepIds: string[] = [];
 
-  /** The steps a subclass feature brings, if it asks anything. */
-  const grantSteps = (feature: SubclassFeature, into: LevelStep[]) => {
-    if (!subclass) return;
-    const grants = feature.grants ?? {};
-    const id = `l${feature.level}-${feature.key}`;
-    const title = `${subclass.name}: ${feature.name}`;
+  /** The rules keys of the features the sheet holds, and of the options chosen for them, so a choice isn't offered twice. */
+  const held = new Set(sheet.features.map((f) => f.key ?? ""));
+  const heldOptions = new Set(sheet.features.map((f) => f.key?.split(":")[1] ?? ""));
+  const heldStyles = sheet.features.filter((f) => f.key?.startsWith("fighting-style:")).length;
+  const chooseCount = (choose: NonNullable<FeatureGrants["choose"]>, level: number) =>
+    typeof choose.count === "number" ? choose.count : choose.count[level] ?? 0;
+
+  /** Where a feature comes from: the class, or the subclass. */
+  type From = { name: string; slug: string };
+  const classFrom: From = { name: rules.name, slug: rules.slug };
+
+  const styleStep = (level: number, featureKey: string, title: string, styles: string[], from: From): LevelStep => ({
+    id: `l${level}-${featureKey}`,
+    level,
+    kind: "fighting-style",
+    title,
+    text: "Choose a fighting style.",
+    link: wikidot(from.slug),
+    feature: featureKey,
+    source: `${from.name} ${level}`,
+    pick: {
+      count: 1,
+      options: styles
+        .filter((style) => !held.has(`fighting-style:${keyOf(style)}`))
+        .map((style) => ({ key: style, label: style, detail: fightingStyleText(style) || undefined })),
+    },
+  });
+
+  const chooseStep = (level: number, featureKey: string, title: string, choose: NonNullable<FeatureGrants["choose"]>, count: number, from: From): LevelStep => ({
+    id: `l${level}-${featureKey}`,
+    level,
+    kind: "choice",
+    title,
+    text: count === 1 ? "Choose one." : `Choose ${count}.`,
+    link: wikidot(from.slug),
+    feature: featureKey,
+    source: `${from.name} ${level}`,
+    pick: {
+      count,
+      options: choose.options.filter((o) => !heldOptions.has(o.key)).map((o) => ({ key: o.key, label: o.name, detail: o.text })),
+    },
+  });
+
+  /** The steps a feature brings, if it asks anything. */
+  const grantSteps = (level: number, featureKey: string, featureName: string, grants: FeatureGrants | undefined, from: From, into: LevelStep[]) => {
+    if (!grants) return;
+    const id = `l${level}-${featureKey}`;
+    const title = `${from.name}: ${featureName}`;
     if (grants.skills) {
       skillStepIds.push(id);
       const open = SKILLS.map((s) => s.key).filter((skill) => !sheet.skills[skill]);
       into.push({
         id,
-        level: feature.level,
+        level,
         kind: "skills",
         title,
         text: `Choose ${grants.skills} skills to become proficient in.`,
-        link: wikidot(subclass.slug),
+        link: wikidot(from.slug),
+        feature: featureKey,
         pick: { count: grants.skills, options: skillOptions(open) },
       });
     }
-    if (grants.fightingStyle) {
-      into.push({
-        id,
-        level: feature.level,
-        kind: "fighting-style",
-        title,
-        text: "Choose a fighting style.",
-        link: wikidot(subclass.slug),
-        pick: { count: 1, options: grants.fightingStyle.map((style) => ({ key: style, label: style })) },
-      });
-    }
+    if (grants.fightingStyle) into.push(styleStep(level, featureKey, title, grants.fightingStyle, from));
     if (grants.spellsAnyList) {
       into.push({
         id,
-        level: feature.level,
+        level,
         kind: "magical-secrets",
         title,
-        text: `Learn ${grants.spellsAnyList} spells from any class's list, of a level you can cast. They don't count against your spells known. The bard list is here to pick from; type a spell from another class's list by name.`,
-        link: wikidot(subclass.slug),
+        text: `Learn ${grants.spellsAnyList} spells from any class's list, of a level you can cast. They don't count against your spells known. The ${rules.name.toLowerCase()} list is here to pick from; type a spell from another class's list by name.`,
+        link: wikidot(from.slug),
+        feature: featureKey,
         pick: {
           count: grants.spellsAnyList,
           options: spellOptions(rules, 0, maxSpellLevel(rules, to), known),
@@ -232,6 +279,14 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
         },
       });
     }
+    if (grants.choose) {
+      const count = chooseCount(grants.choose, level);
+      if (count) into.push(chooseStep(level, featureKey, title, grants.choose, count, from));
+    }
+  };
+
+  const subclassGrants = (feature: SubclassFeature, into: LevelStep[]) => {
+    if (subclass) grantSteps(feature.level, feature.key, feature.name, feature.grants, subclass, into);
   };
 
   const subclassStep = (): LevelStep[] => {
@@ -257,7 +312,7 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
     ];
     if (subclass) {
       for (const feature of subclass.features.filter((f) => f.level <= to)) {
-        grantSteps(feature, out);
+        subclassGrants(feature, out);
         gains.push(subclassFeature(subclass, feature));
       }
     }
@@ -265,6 +320,27 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
   };
 
   if (choosingSubclass && rules.subclassLevel < to) catchUp.push(...subclassStep());
+
+  // Choices a class feature offered at an earlier level that the sheet never recorded: a fighting style, a Metamagic.
+  const owed = new Map<string, { feature: ClassFeature; level: number; count: number }>();
+  for (let level = 1; level <= from; level++) {
+    for (const feature of grantingFeatures(rules, level)) {
+      const count = feature.grants!.choose ? chooseCount(feature.grants!.choose, level) : feature.grants!.fightingStyle ? 1 : 0;
+      if (!count) continue;
+      const soFar = owed.get(feature.key);
+      owed.set(feature.key, { feature, level, count: (soFar?.count ?? 0) + count });
+    }
+  }
+  for (const { feature, level, count } of owed.values()) {
+    const grants = feature.grants!;
+    const title = `${rules.name}: ${feature.name}`;
+    if (grants.choose) {
+      const have = sheet.features.filter((f) => f.key?.startsWith(`${feature.key}:`)).length;
+      if (have < count) catchUp.push(chooseStep(level, feature.key, title, grants.choose, count - have, classFrom));
+    } else if (grants.fightingStyle && heldStyles < count) {
+      catchUp.push(styleStep(level, feature.key, title, grants.fightingStyle, classFrom));
+    }
+  }
 
   // Expertise: anything missed, then this level's.
   const expertiseHave = Object.values(sheet.skills).filter((rank) => rank === "expertise").length;
@@ -306,18 +382,22 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
     link: wikidot(`spells:${rules.key}`),
     pick: { count, options: spellOptions(rules, 0, 0, known) },
   });
+  // A prepared caster's rows leave spellsKnown out, unless the class keeps a spellbook (the Wizard).
+  const spellbook = rules.caster === "prepared";
   const spellStep = (level: number, count: number, late: boolean): LevelStep => ({
     id: `l${level}-spells`,
     level,
     kind: "spells",
-    title: late ? "Spells known" : "New spell" + (count > 1 ? "s" : ""),
-    text: `Choose ${count} ${rules.name.toLowerCase()} spell${count > 1 ? "s" : ""} of a level you have slots for (up to ${ordinal(maxSpellLevel(rules, level))}).`,
+    title: late ? (spellbook ? "Spellbook" : "Spells known") : "New spell" + (count > 1 ? "s" : ""),
+    text:
+      `Choose ${count} ${rules.name.toLowerCase()} spell${count > 1 ? "s" : ""} of a level you have slots for (up to ${ordinal(maxSpellLevel(rules, level))})` +
+      (spellbook ? " to copy into your spellbook." : "."),
     link: wikidot(`spells:${rules.key}`),
     pick: { count, options: spellOptions(rules, 1, maxSpellLevel(rules, level), known) },
   });
   if (rules.caster !== "none") {
     if (cantripsDue) catchUp.push(cantripStep(from, cantripsDue, true));
-    if (rules.caster === "known" && knownDue) catchUp.push(spellStep(from, knownDue, true));
+    if (knownDue) catchUp.push(spellStep(from, knownDue, true));
   }
 
   // The new level.
@@ -347,9 +427,11 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
 
   if (expertiseNew) steps.push(expertiseStep(to, expertiseNew));
 
+  for (const feature of grantingFeatures(rules, to)) grantSteps(to, feature.key, feature.name, feature.grants, classFrom, steps);
+
   if (sheet.subclass && subclass) {
     for (const feature of subclass.features.filter((f) => f.level === to)) {
-      grantSteps(feature, steps);
+      subclassGrants(feature, steps);
       gains.push(subclassFeature(subclass, feature));
     }
   }
@@ -370,24 +452,23 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
   if (rules.caster !== "none") {
     const cantripsNew = Math.max(0, (nextRow.cantrips ?? 0) - Math.max(cantripsHave, prevRow.cantrips ?? 0));
     if (cantripsNew) steps.push(cantripStep(to, cantripsNew, false));
-    if (rules.caster === "known") {
-      const knownNew = Math.max(0, (nextRow.spellsKnown ?? 0) - Math.max(knownHave, prevRow.spellsKnown ?? 0) - secrets);
-      if (knownNew) steps.push(spellStep(to, knownNew, false));
-      if (knownHave > 0) {
-        steps.push({
-          id: `l${to}-swap`,
-          level: to,
-          kind: "swap",
-          title: "Swap a spell",
-          text: `You may forget one ${rules.name.toLowerCase()} spell you know and learn another in its place, of a level you have slots for. Leave it as it is to keep them all.`,
-          link: wikidot(rules.slug),
-          optional: true,
-          swap: {
-            forget: sheet.spellcasting.known.map((key) => ({ key, label: spellName(key), link: spellLink(key) })),
-            learn: spellOptions(rules, 1, maxSpellLevel(rules, to), known),
-          },
-        });
-      }
+    const knownNew = Math.max(0, (nextRow.spellsKnown ?? 0) - Math.max(knownHave, prevRow.spellsKnown ?? 0) - secrets);
+    if (knownNew) steps.push(spellStep(to, knownNew, false));
+    // A class that knows its spells can trade one at each level; a spellbook keeps them all.
+    if ((rules.caster === "known" || rules.caster === "pact") && knownHave > 0) {
+      steps.push({
+        id: `l${to}-swap`,
+        level: to,
+        kind: "swap",
+        title: "Swap a spell",
+        text: `You may forget one ${rules.name.toLowerCase()} spell you know and learn another in its place, of a level you have slots for. Leave it as it is to keep them all.`,
+        link: wikidot(rules.slug),
+        optional: true,
+        swap: {
+          forget: sheet.spellcasting.known.map((key) => ({ key, label: spellName(key), link: spellLink(key) })),
+          learn: spellOptions(rules, 1, maxSpellLevel(rules, to), known),
+        },
+      });
     }
   }
 
@@ -396,7 +477,20 @@ export function planLevelUp(sheet: CharacterSheet, choices: Choices = {}): Level
     if (feature) gains.push(feature);
   }
 
-  return { rules, from, to, steps: [...catchUp, ...steps], gains };
+  const all = [...catchUp, ...steps];
+  // A spell picked at one step isn't offered at another: each step's options lose the other steps' picks.
+  const spellSteps = all.filter((s) => s.kind === "cantrips" || s.kind === "spells" || s.kind === "magical-secrets" || s.kind === "swap");
+  const pickedAt = (step: LevelStep): string[] =>
+    step.kind === "swap" ? [(choices[step.id] as SwapChoice | undefined)?.learn ?? ""].filter(Boolean) : asList(choices[step.id]);
+  for (const step of spellSteps) {
+    const elsewhere = new Set(spellSteps.filter((s) => s !== step).flatMap(pickedAt).map((p) => p.toLowerCase()));
+    if (!elsewhere.size) continue;
+    const keep = (o: StepOption) => !elsewhere.has(o.key.toLowerCase());
+    if (step.pick) step.pick = { ...step.pick, options: step.pick.options.filter(keep) };
+    if (step.swap) step.swap = { ...step.swap, learn: step.swap.learn.filter(keep) };
+  }
+
+  return { rules, from, to, steps: all, gains };
 }
 
 // ---------------------------------------------------------------------------
@@ -626,16 +720,26 @@ export function applyLevelUp(sheet: CharacterSheet, choices: Choices, date = tod
         break;
       case "fighting-style":
         gains.push({
-          key: "fighting-style",
+          key: `fighting-style:${keyOf(picks[0])}`,
           name: `Fighting Style: ${picks[0]}`,
-          source: `${plan.rules.subclasses?.[subclass]?.name ?? plan.rules.name} ${step.level}`,
+          source: step.source ?? `${plan.rules.name} ${step.level}`,
           level: step.level,
-          text:
-            picks[0] === "Dueling"
-              ? "+2 to damage rolls with a melee weapon held in one hand, and no other weapon."
-              : "When you fight with two weapons, add your ability modifier to the second attack's damage.",
-          link: wikidot("bard:swords"),
+          text: fightingStyleText(picks[0]),
+          link: step.link,
         });
+        break;
+      case "choice":
+        for (const pick of picks) {
+          const option = step.pick?.options.find((o) => o.key === pick);
+          gains.push({
+            key: `${step.feature}:${pick}`,
+            name: option?.label ?? pick,
+            source: step.source ?? `${plan.rules.name} ${step.level}`,
+            level: step.level,
+            text: option?.detail ?? "",
+            link: step.link,
+          });
+        }
         break;
       case "cantrips":
         spellcasting.cantrips = addUnique(spellcasting.cantrips, picks);
@@ -660,14 +764,19 @@ export function applyLevelUp(sheet: CharacterSheet, choices: Choices, date = tod
     if (said) log.push({ step: step.level < plan.to ? `${step.title} (level ${step.level})` : step.title, chose: said });
   }
 
-  // Subclass grants that need no answer: armour and weapons.
+  // Grants that need no answer: armour, weapons, tools, and a feature's own spells.
+  const applyGrants = (grants?: FeatureGrants) => {
+    if (!grants) return;
+    proficiencies.armor = addUnique(proficiencies.armor, grants.armor ?? []);
+    proficiencies.weapons = addUnique(proficiencies.weapons, grants.weapons ?? []);
+    proficiencies.tools = addUnique(proficiencies.tools, grants.tools ?? []);
+    spellcasting.bonus = addUnique(spellcasting.bonus, grants.spells ?? []);
+  };
+  for (const feature of grantingFeatures(plan.rules, plan.to)) applyGrants(feature.grants);
   const sub = subclass ? plan.rules.subclasses?.[subclass] : undefined;
   if (sub) {
     const granted = sub.features.filter((f) => (sheet.subclass ? f.level === plan.to : f.level <= plan.to));
-    for (const feature of granted) {
-      proficiencies.armor = addUnique(proficiencies.armor, feature.grants?.armor ?? []);
-      proficiencies.weapons = addUnique(proficiencies.weapons, feature.grants?.weapons ?? []);
-    }
+    for (const feature of granted) applyGrants(feature.grants);
   }
 
   // Hit points: the new level's, and one more for every earlier level if the CON modifier rose.

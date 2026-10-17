@@ -1,10 +1,26 @@
 import type { Spell } from "~/types/fifth";
 import { keyOf, ordinal, wikidot } from "../core";
+import { ARTIFICER_SPELL_NAMES } from "./artificer";
 import { BARD_SPELL_NAMES } from "./bard";
+import { CLERIC_SPELL_NAMES } from "./cleric";
+import { DRUID_SPELL_NAMES } from "./druid";
+import { PALADIN_SPELL_NAMES } from "./paladin";
+import { RANGER_SPELL_NAMES } from "./ranger";
+import { SORCERER_SPELL_NAMES } from "./sorcerer";
+import { WARLOCK_SPELL_NAMES } from "./warlock";
+import { WIZARD_SPELL_NAMES } from "./wizard";
 
 /** Spell lists by class key, as names a level (index 0 is cantrips). */
 const LISTS: Record<string, string[][]> = {
+  artificer: ARTIFICER_SPELL_NAMES,
   bard: BARD_SPELL_NAMES,
+  cleric: CLERIC_SPELL_NAMES,
+  druid: DRUID_SPELL_NAMES,
+  paladin: PALADIN_SPELL_NAMES,
+  ranger: RANGER_SPELL_NAMES,
+  sorcerer: SORCERER_SPELL_NAMES,
+  warlock: WARLOCK_SPELL_NAMES,
+  wizard: WIZARD_SPELL_NAMES,
 };
 
 function toSpells(names: string[][]): Spell[] {

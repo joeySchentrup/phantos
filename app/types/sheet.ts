@@ -41,8 +41,8 @@ export interface SheetFeature {
   level: number;
   text: string;
   link?: string;
-  /** Uses a rest: a number, or an ability whose modifier it is (at least 1). */
-  uses?: { max: number | Ability; per: RestKind };
+  /** Uses a rest: a number, an ability whose modifier it is (at least 1), the level, or the proficiency bonus. */
+  uses?: { max: number | Ability | "level" | "prof"; per: RestKind };
 }
 
 export interface SheetFeat {

@@ -165,10 +165,9 @@ describe("the other classes", () => {
     });
   });
 
-  it("can't take levels in the wizard until their table is filled in", () => {
-    expect(canLevel(CLASSES.bard)).toBe(true);
-    expect(canLevel(CLASSES.fighter)).toBe(false);
-    expect(levelUpBlocker({ class: "fighter", level: 3 })).toMatch(/outline/);
+  it("can all take levels in the wizard", () => {
+    for (const rules of Object.values(CLASSES)) expect(canLevel(rules), rules.name).toBe(true);
+    expect(levelUpBlocker({ class: "fighter", level: 3 })).toBeNull();
     expect(levelUpBlocker({ class: "jester", level: 3 })).toMatch(/don't know/);
     expect(levelUpBlocker({ class: "bard", level: 20 })).toMatch(/last/);
   });
@@ -222,6 +221,22 @@ describe("taking a level", () => {
     const options = plan.steps.find((s) => s.id === "l3-expertise")!.pick!.options.map((o) => o.key);
     expect(options).toContain("performance");
     expect(options).toContain("history");
+  });
+
+  it("doesn't offer a spell again once an earlier step has taken it", () => {
+    const plan = planLevelUp(daymond, TO_FOUR);
+    const at = (id: string) => plan.steps.find((s) => s.id === id)!;
+    expect(at("l4-cantrips").pick!.options.map((o) => o.key)).not.toContain("vicious-mockery");
+    expect(at("l4-cantrips").pick!.options.map((o) => o.key)).toContain("mage-hand");
+    expect(at("l4-spells").pick!.options.map((o) => o.key)).not.toContain("healing-word");
+    expect(at("l3-spells").pick!.options.map((o) => o.key)).not.toContain("invisibility");
+    expect(at("l3-spells").pick!.options.map((o) => o.key)).toContain("healing-word");
+    // A swap can't learn what a step just picked, and a step can't pick what a swap learns.
+    const four = { ...daymond, ...applyLevelUp(daymond, TO_FOUR) } as CharacterSheet;
+    const swapping: Choices = { "l5-spells": ["hypnotic-pattern"], "l5-swap": { forget: "silence", learn: "fear" } };
+    const five = planLevelUp(four, swapping);
+    expect(five.steps.find((s) => s.id === "l5-swap")!.swap!.learn.map((o) => o.key)).not.toContain("hypnotic-pattern");
+    expect(five.steps.find((s) => s.id === "l5-spells")!.pick!.options.map((o) => o.key)).not.toContain("fear");
   });
 
   it("offers only spells of a level there are slots for, and not the racial light", () => {
@@ -306,7 +321,8 @@ describe("taking a level", () => {
     const errors = (choices: Choices) => validateChoices(daymond, planLevelUp(daymond, choices), choices);
     expect(errors({ ...TO_FOUR, "l3-expertise": ["persuasion"] })["l3-expertise"]).toMatch(/Choose 2/);
     expect(errors({ ...TO_FOUR, "l3-expertise": ["persuasion", "stealth"] })["l3-expertise"]).toMatch(/isn't one of/);
-    expect(errors({ ...TO_FOUR, "l4-spells": ["healing-word"] })["l4-spells"]).toMatch(/already chosen/);
+    expect(errors({ ...TO_FOUR, "l4-spells": ["healing-word"] })["l4-spells"]).toMatch(/isn't one of/);
+    expect(errors({ ...TO_FOUR, "l3-spells": ["healing-word", "dissonant-whispers", "faerie-fire", "heroism", "suggestion", "healing-word"] })["l3-spells"]).toMatch(/only once/);
     expect(errors({ ...TO_FOUR, "l4-hp": { mode: "roll", roll: 9 } })["l4-hp"]).toMatch(/1 to 8/);
     expect(errors({ ...TO_FOUR, "l4-asi": { mode: "+1+1", abilities: ["cha", "cha"] } })["l4-asi"]).toMatch(/different/);
     const strong = { ...daymond, abilities: { ...daymond.abilities, cha: 19 } };
