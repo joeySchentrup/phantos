@@ -98,10 +98,13 @@ export function typingLine(names: string[]): string {
   return "Several people are typing…";
 }
 
-/** The newest message, as the line under a room's name. */
-export function previewText(message: Pick<ChatMessage, "body" | "senderName" | "mine"> | null): string {
+/** The newest message, as the line under a room's name: a picture by its caption, or as "Picture". */
+export function previewText(
+  message: (Pick<ChatMessage, "body" | "senderName" | "mine"> & { picture?: ChatMessage["picture"] }) | null
+): string {
   if (!message) return "";
-  const text = message.body === null ? "Attachment" : message.body.replace(/\s+/g, " ").trim();
+  const body = message.body?.replace(/\s+/g, " ").trim() ?? null;
+  const text = message.picture ? body || "Picture" : body === null ? "Attachment" : body;
   return `${message.mine ? "You" : message.senderName}: ${text}`;
 }
 

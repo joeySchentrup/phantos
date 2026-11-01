@@ -16,7 +16,7 @@ import ChatConversation from "../components/ChatConversation";
 import ChatGroupEditor from "../components/ChatGroupEditor";
 import ChatRooms from "../components/ChatRooms";
 import { roomTitle } from "../lib/chat";
-import { useChat, useChatEnabled } from "../lib/useChat";
+import { useChat, useChatConfig } from "../lib/useChat";
 import type { ChatRecord } from "../types/chat";
 import type { Player } from "../types/player";
 
@@ -65,7 +65,8 @@ export default function Chat() {
   const visitor = useVisitor();
   const isDm = visitor === "dm";
   const mayChat = visitor === "player" || isDm;
-  const chatOn = useChatEnabled(mayChat);
+  const config = useChatConfig(mayChat);
+  const chatOn = config ? config.enabled : null;
   const chat = useChat(mayChat && chatOn === true);
   const ready = chat.status === "ready";
 
@@ -237,6 +238,7 @@ export default function Chat() {
                 room={room}
                 title={roomTitle(room, isDm)}
                 ready={ready}
+                gifs={config?.gifs ?? null}
                 syncError={record?.sync_error}
                 onBack={() => select("")}
                 onEdit={isDm && room.kind === "group" ? () => setEditing({ kind: "edit", chatId: room.chatId }) : undefined}

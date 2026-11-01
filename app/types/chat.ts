@@ -15,10 +15,18 @@ export interface ChatSession {
   device_id: string;
 }
 
+/** GIF search's settings: GIPHY's key and content rating, from PocketBase's environment. */
+export interface GifSettings {
+  key: string;
+  rating: string;
+}
+
 /** Whether chat is on, and where the chat server is: PocketBase's MATRIX_PUBLIC_URL. */
 export interface ChatConfig {
   enabled: boolean;
   homeserver: string;
+  /** GIF search, for approved players and DMs when GIPHY_API_KEY is set; null otherwise. */
+  gifs: GifSettings | null;
 }
 
 /** A `chats` record, which only DMs read: a player's private channel, or a group a DM made. */
@@ -70,13 +78,47 @@ export interface ChatRoomSummary {
 
 export type ChatMessageStatus = "sent" | "sending" | "failed";
 
+/** The picture types chat sends and shows; the same as the site's other uploads (IMAGE_EXTENSIONS in lib.js). */
+export type PictureType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+
+/** A picture in a message (an `m.image` event): where it is on the chat server, and its size. */
+export interface ChatPicture {
+  /** Its `mxc://` address. */
+  mxc: string;
+  mimetype: PictureType;
+  width: number;
+  height: number;
+  /** In bytes; 0 when the sender didn't say. */
+  size: number;
+  filename: string;
+}
+
+/** A picture ready to send: a photo shrunk and re-saved, or a GIF as it was. */
+export interface PreparedPicture {
+  blob: Blob;
+  mimetype: PictureType;
+  width: number;
+  height: number;
+  name: string;
+}
+
+/** One GIF from GIPHY's search: a small preview for the picker, and the copy to send. */
+export interface GifResult {
+  id: string;
+  title: string;
+  preview: { url: string; width: number; height: number };
+  send: { url: string; width: number; height: number; size: number };
+}
+
 export interface ChatMessage {
   /** The event's ID, or its transaction ID while it's still being sent. */
   id: string;
   sender: string;
   senderName: string;
-  /** The message's text; null for anything the site doesn't show (a picture, a file). */
+  /** The message's text, or a picture's caption ("" for none); null for anything the site doesn't show (a file). */
   body: string | null;
+  /** The picture, for a picture message. */
+  picture: ChatPicture | null;
   ts: number;
   mine: boolean;
   status: ChatMessageStatus;

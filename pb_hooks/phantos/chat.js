@@ -54,6 +54,24 @@ function settings() {
   return { url: url, publicUrl: publicUrl, serverName: serverName, token: token };
 }
 
+/** GIPHY's content ratings, mildest first. */
+const GIF_RATINGS = ['g', 'pg', 'pg-13', 'r'];
+/** Where GIF search runs and its GIFs are downloaded from, by the browser. */
+const GIPHY_ORIGINS = 'https://*.giphy.com';
+
+/** A GIF rating GIPHY knows, or pg-13. */
+function gifRating(value) {
+  const rating = String(value || '').trim().toLowerCase();
+  return GIF_RATINGS.indexOf(rating) >= 0 ? rating : 'pg-13';
+}
+
+/** GIF search's settings, or null without GIPHY_API_KEY (or with chat off): then the site offers none. */
+function gifSettings() {
+  const key = String($os.getenv('GIPHY_API_KEY') || '').trim();
+  if (!key || !settings()) return null;
+  return { key: key, rating: gifRating($os.getenv('GIPHY_RATING')) };
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
@@ -65,14 +83,19 @@ function urlOrigin(url) {
 }
 
 /**
- * The pages' `connect-src`: PocketBase itself, and the chat server when chat
- * is on. PocketBase sends it as a header on every page, so the chat server's
- * address is set in one place, MATRIX_PUBLIC_URL, when PocketBase starts. The
- * build's own policy (csp.ts) leaves connections to this header.
+ * The pages' `connect-src`: PocketBase itself, the chat server when chat is
+ * on, and GIPHY when GIF search is too (the browser searches it and downloads
+ * the GIF it sends). PocketBase sends it as a header on every page, so the
+ * chat server's address is set in one place, MATRIX_PUBLIC_URL, when
+ * PocketBase starts. The build's own policy (csp.ts) leaves connections to
+ * this header.
  */
-function connectPolicy(publicUrl) {
+function connectPolicy(publicUrl, gifs) {
   const origin = urlOrigin(publicUrl);
-  return "connect-src 'self'" + (origin ? ' ' + origin : '');
+  const sources = ["'self'"];
+  if (origin) sources.push(origin);
+  if (origin && gifs) sources.push(GIPHY_ORIGINS);
+  return 'connect-src ' + sources.join(' ');
 }
 
 function oneLine(text) {
@@ -695,13 +718,28 @@ function setPagePolicy(e) {
   const path = String(e.request.url.path || '');
   if (path === '/api' || path.indexOf('/api/') === 0 || path === '/_' || path.indexOf('/_/') === 0) return;
   const cfg = settings();
-  e.response.header().set('Content-Security-Policy', connectPolicy(cfg ? cfg.publicUrl : ''));
+  e.response.header().set('Content-Security-Policy', connectPolicy(cfg ? cfg.publicUrl : '', !!gifSettings()));
 }
 
-/** Whether chat is on, and the chat server's address, for the site: it shows the Chat section by this. */
+/** Whether the signed-in account may chat: a DM, or an approved player. */
+function mayChat(auth) {
+  if (!auth) return false;
+  const collection = auth.collection().name;
+  return collection === DMS || (collection === PLAYERS && auth.getBool('approved'));
+}
+
+/**
+ * Whether chat is on, and the chat server's address, for the site: it shows
+ * the Chat section by this. GIPHY asks that its search be called from the
+ * browser, so its key comes too, but only to those who may chat.
+ */
 function config(e) {
   const cfg = settings();
-  return e.json(200, { enabled: !!cfg, homeserver: cfg ? cfg.publicUrl : '' });
+  return e.json(200, {
+    enabled: !!cfg,
+    homeserver: cfg ? cfg.publicUrl : '',
+    gifs: cfg && mayChat(e.auth) ? gifSettings() : null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -765,6 +803,7 @@ function session(e) {
 module.exports = {
   settings: settings,
   urlOrigin: urlOrigin,
+  gifRating: gifRating,
   connectPolicy: connectPolicy,
   setPagePolicy: setPagePolicy,
   config: config,

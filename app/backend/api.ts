@@ -1173,19 +1173,28 @@ export function onAccountChange(callback: () => void): () => void {
 
 const CHAT_COLLECTION = 'chats';
 
-let chatConfig: Promise<ChatConfig> | null = null;
+let chatConfig: { owner: string; config: Promise<ChatConfig> } | null = null;
 
 /**
- * Whether chat is on, and the chat server's address, as set in PocketBase's
- * environment. Asked once a page load; a failure is asked again next time.
+ * Whether chat is on, the chat server's address and GIF search's settings,
+ * as set in PocketBase's environment. Asked once a page load for each
+ * account (only those who may chat get GIF search); a failure is asked again
+ * next time.
  */
 export function getChatConfig(): Promise<ChatConfig> {
-  chatConfig ??= pb.send<ChatConfig>('/api/phantos/chat/config', { requestKey: null }).catch((error) => {
-    console.error('Error asking whether chat is on:', error);
-    chatConfig = null;
-    return { enabled: false, homeserver: '' };
-  });
-  return chatConfig;
+  const owner = signedInAccountId();
+  if (!chatConfig || chatConfig.owner !== owner) {
+    const asked: { owner: string; config: Promise<ChatConfig> } = {
+      owner,
+      config: pb.send<ChatConfig>('/api/phantos/chat/config', { requestKey: null }).catch((error) => {
+        console.error('Error asking whether chat is on:', error);
+        if (chatConfig === asked) chatConfig = null;
+        return { enabled: false, homeserver: '', gifs: null };
+      }),
+    };
+    chatConfig = asked;
+  }
+  return chatConfig.config;
 }
 
 /**

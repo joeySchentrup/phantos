@@ -1,7 +1,18 @@
 import type { MatrixClient, MatrixEvent, Room } from "matrix-js-sdk";
 import type { RoomMessageEventContent } from "matrix-js-sdk/lib/types";
 import { newDeviceId, previewText, sortRooms } from "../lib/chat";
-import type { ChatKind, ChatMarker, ChatMessage, ChatRoomSummary, ChatRoomView, ChatSession, ChatState } from "../types/chat";
+import { isPictureType, mediaUrl, parseMxc, pictureCaption, sniffPictureType } from "../lib/chatImages";
+import type {
+  ChatKind,
+  ChatMarker,
+  ChatMessage,
+  ChatPicture,
+  ChatRoomSummary,
+  ChatRoomView,
+  ChatSession,
+  ChatState,
+  PreparedPicture,
+} from "../types/chat";
 import { getChatSession, onAccountChange, signedInAccountId } from "./api";
 
 /**
@@ -181,6 +192,25 @@ function roomMarker(room: Room): ChatMarker | null {
   return { kind, player: String(content?.player ?? ""), chat: String(content?.chat ?? "") };
 }
 
+/**
+ * A picture message's picture, when it's one the site shows: one of
+ * PICTURE_TYPES, kept on the chat server (an encrypted one has no `url`).
+ * What it really is gets checked again from its bytes when it's fetched.
+ */
+function toPicture(content: Record<string, any>): ChatPicture | null {
+  const info = content.info ?? {};
+  if (!parseMxc(content.url) || !isPictureType(info.mimetype)) return null;
+  const filename = typeof content.filename === "string" && content.filename ? content.filename : String(content.body ?? "");
+  return {
+    mxc: content.url,
+    mimetype: info.mimetype,
+    width: Number(info.w) || 0,
+    height: Number(info.h) || 0,
+    size: Number(info.size) || 0,
+    filename: filename || "picture",
+  };
+}
+
 function toMessage(event: MatrixEvent, me: string): ChatMessage | null {
   if (event.getType() !== "m.room.message" || event.isRedacted()) return null;
   const content = event.getContent();
@@ -189,11 +219,14 @@ function toMessage(event: MatrixEvent, me: string): ChatMessage | null {
   if (status === "cancelled") return null;
 
   const sender = event.getSender() ?? "";
+  const picture = content.msgtype === "m.image" ? toPicture(content) : null;
+  const text = TEXT_TYPES.has(content.msgtype) && typeof content.body === "string" ? content.body : null;
   return {
     id: event.getId() ?? event.getTxnId() ?? "",
     sender,
     senderName: event.sender?.name ?? sender,
-    body: TEXT_TYPES.has(content.msgtype) && typeof content.body === "string" ? content.body : null,
+    body: picture ? pictureCaption(content.body, content.filename) : text,
+    picture,
     ts: event.getTs(),
     mine: sender === me,
     status: status === "not_sent" ? "failed" : status && status !== "sent" ? "sending" : "sent",
@@ -439,6 +472,90 @@ export async function sendText(roomId: string, text: string): Promise<void> {
     // It stays in the conversation, marked as not sent, with a retry.
     console.error("Error sending a message:", error);
   }
+}
+
+/**
+ * Uploads a picture to the chat server and sends it as a picture message
+ * (`m.image`), with its caption when there is one: the `body` differs from
+ * the file name (Matrix 1.10). Throws when the upload or the send fails.
+ */
+export async function sendPicture(
+  roomId: string,
+  picture: PreparedPicture,
+  caption: string,
+  onProgress?: (fraction: number) => void
+): Promise<void> {
+  const matrix = client;
+  if (!matrix || !sdk) throw new Error("Chat isn't connected.");
+  setTyping(roomId, false);
+  const upload = await matrix.uploadContent(picture.blob, {
+    name: picture.name,
+    type: picture.mimetype,
+    progressHandler: ({ loaded, total }) => onProgress?.(total ? loaded / total : 0),
+  });
+  const content = {
+    msgtype: sdk.MsgType.Image,
+    body: caption.trim() || picture.name,
+    filename: picture.name,
+    url: upload.content_uri,
+    info: { mimetype: picture.mimetype, size: picture.blob.size, w: picture.width, h: picture.height },
+  } as RoomMessageEventContent;
+  await matrix.sendMessage(roomId, content);
+}
+
+// ---------------------------------------------------------------------------
+// Pictures, fetched with the session's token
+// ---------------------------------------------------------------------------
+
+/**
+ * The chat server's media needs the session's token, which an <img src>
+ * can't send, so pictures are fetched here and shown from `blob:` URLs. Each
+ * is kept while something shows it and revoked when nothing does (the
+ * conversation lets go of all of its pictures when it closes or the room
+ * changes), so the page's memory doesn't grow.
+ */
+const media = new Map<string, { refs: number; url: Promise<string> }>();
+
+export type MediaKind = "thumbnail" | "download";
+
+async function fetchMedia(mxc: string, kind: MediaKind): Promise<string> {
+  const matrix = client;
+  const url = matrix ? mediaUrl(matrix.getHomeserverUrl(), mxc, kind) : null;
+  if (!matrix || !url) throw new Error("The picture isn't on the chat server.");
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${matrix.getAccessToken()}` } });
+  if (!response.ok) throw new Error("The picture couldn't be loaded.");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  // The bytes decide what it is, whatever its sender or the server said: never an SVG, never a page.
+  const type = sniffPictureType(bytes);
+  if (!type) throw new Error("That isn't a picture the site shows.");
+  return URL.createObjectURL(new Blob([bytes], { type }));
+}
+
+/** A picture's `blob:` URL, shared by everything that shows it. Call `release` when it's no longer shown. */
+export function acquireMedia(mxc: string, kind: MediaKind): { url: Promise<string>; release: () => void } {
+  const key = `${kind} ${mxc}`;
+  let entry = media.get(key);
+  if (!entry) {
+    const made = { refs: 0, url: fetchMedia(mxc, kind) };
+    made.url.catch(() => {
+      if (media.get(key) === made) media.delete(key);
+    });
+    media.set(key, made);
+    entry = made;
+  }
+  const held = entry;
+  held.refs++;
+  let released = false;
+  return {
+    url: held.url,
+    release: () => {
+      if (released) return;
+      released = true;
+      if (--held.refs > 0) return;
+      if (media.get(key) === held) media.delete(key);
+      held.url.then((url) => URL.revokeObjectURL(url)).catch(() => {});
+    },
+  };
 }
 
 /** Sends a message that failed again. */

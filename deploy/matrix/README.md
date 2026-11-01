@@ -35,6 +35,8 @@ The NAS never connects to the VM. Synapse serves its own `/.well-known/matrix/*`
    - Let PocketBase's container reach the chat subdomain through proxy 2.
 6. **Check.** `https://<chat subdomain>/_matrix/client/versions` should return JSON listing Matrix versions. `https://<chat subdomain>/_matrix/federation/v1/version` should return 404, which confirms federation is off.
 
+`homeserver.yaml` limits each person to 500 MB of uploads a day (`media_upload_limits`), on top of the 50 MB a file. The site sends photos shrunk, and GIFs of 15 MB at most, so a table's day of pictures is far below it. Redeploy Synapse after changing it.
+
 Keep the four secrets: the website's side needs `as_token`, and the signing key can't be replaced without wiping the server.
 
 ## Switching chat on for the website
@@ -47,6 +49,15 @@ PocketBase reads four settings, from its environment (the container's env file).
 | `MATRIX_PUBLIC_URL` | The address browsers use, e.g. `https://matrix.phantos.schentrupsoftware.com` |
 | `MATRIX_SERVER_NAME` | `server_name` in `homeserver.yaml` |
 | `MATRIX_AS_TOKEN` | `as_token` in `phantos-appservice.yaml` |
+
+Two more turn on GIF search, which needs chat on too. Without them, the GIF button is hidden; GIF files can still be sent.
+
+| Setting | What |
+|---|---|
+| `GIPHY_API_KEY` | A key from [developers.giphy.com](https://developers.giphy.com/). A new key is a beta key: 100 searches an hour for the whole table. The site gives it only to approved players and DMs, because GIPHY requires its search to be called from the browser. |
+| `GIPHY_RATING` | How far GIFs go: `g`, `pg`, `pg-13` (when empty) or `r` |
+
+GIPHY's terms ask for its official "Powered by GIPHY" mark wherever its search shows, and it doesn't accept plain text for a production key. Download the mark from your GIPHY developer dashboard and put it in the site's `public/` folder as `powered-by-giphy.png`; until it's there, the picker says "Powered by GIPHY" in text.
 
 Set them on the site's container and restart it. Nothing is built in: PocketBase gives `MATRIX_PUBLIC_URL` to the site (which then shows the Chat section) and adds it to every page's Content-Security-Policy, which is what lets browsers reach the chat server. Check with `curl -I https://<site>/`: the `Content-Security-Policy` header should read `connect-src 'self' <chat address>`.
 

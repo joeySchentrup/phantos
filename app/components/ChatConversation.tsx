@@ -1,14 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { loadOlder, markRead, resend, sendText, setTyping } from "~/backend/chat";
+import { loadOlder, markRead, resend } from "~/backend/chat";
 import { groupMessages, linkify, timeLabel, typingLine } from "~/lib/chat";
 import { useChatRoom } from "~/lib/useChat";
-import type { ChatMessage, ChatRoomSummary } from "~/types/chat";
+import type { ChatMessage, ChatPicture as Picture, ChatRoomSummary, GifSettings } from "~/types/chat";
+import ChatComposer from "./ChatComposer";
+import ChatPicture from "./ChatPicture";
+import ChatPictureViewer from "./ChatPictureViewer";
 
 interface Props {
   room: ChatRoomSummary;
   title: string;
   /** Whether chat is connected. */
   ready: boolean;
+  /** GIF search, when PocketBase has a GIPHY key. */
+  gifs: GifSettings | null;
   /** For DMs: why the chat server isn't in step with this chat yet. */
   syncError?: string;
   /** Back to the room list, at phone width. */
@@ -20,8 +25,6 @@ interface Props {
 /** Within this of the bottom, the conversation follows new messages; within this of the top, it loads older ones. */
 const NEAR_BOTTOM_PX = 80;
 const NEAR_TOP_PX = 120;
-const MESSAGE_MAX = 4000;
-const COMPOSER_MAX_PX = 160;
 
 /** Plain text with its web addresses as links. Never HTML: nothing in a message can run. */
 function MessageText({ text }: { text: string }) {
@@ -40,7 +43,7 @@ function MessageText({ text }: { text: string }) {
   );
 }
 
-function Message({ message, roomId }: { message: ChatMessage; roomId: string }) {
+function Message({ message, roomId, onOpen }: { message: ChatMessage; roomId: string; onOpen: (message: ChatMessage) => void }) {
   const className =
     message.status === "failed"
       ? "chat-message chat-message--failed"
@@ -49,7 +52,20 @@ function Message({ message, roomId }: { message: ChatMessage; roomId: string }) 
         : "chat-message";
   return (
     <div className={className} title={timeLabel(message.ts)}>
-      {message.body === null ? <em className="chat-attachment">Attachment not shown</em> : <MessageText text={message.body} />}
+      {message.picture ? (
+        <>
+          <ChatPicture picture={message.picture} alt={message.body || message.picture.filename} onOpen={() => onOpen(message)} />
+          {message.body && (
+            <span className="chat-caption">
+              <MessageText text={message.body} />
+            </span>
+          )}
+        </>
+      ) : message.body === null ? (
+        <em className="chat-attachment">Attachment not shown</em>
+      ) : (
+        <MessageText text={message.body} />
+      )}
       {message.status === "failed" && (
         <button type="button" onClick={() => resend(roomId, message.id)} className="chat-retry">
           Not sent · Retry
@@ -59,26 +75,25 @@ function Message({ message, roomId }: { message: ChatMessage; roomId: string }) 
   );
 }
 
-/** One room: its messages, who's typing, and the box to write in. */
-export default function ChatConversation({ room, title, ready, syncError, onBack, onEdit }: Props) {
+/** One room: its messages, who's typing, and the box to write in. A picture can be dropped anywhere on it. */
+export default function ChatConversation({ room, title, ready, gifs, syncError, onBack, onEdit }: Props) {
   const view = useChatRoom(room.id, ready);
   const logRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   /** Whether the reader is at the bottom, so new messages scroll into view and count as read. */
   const atBottom = useRef(true);
   /** What was on screen last render, to keep the reader's place as messages come in above or below. */
   const seen = useRef({ room: "", first: "", last: "", fromBottom: 0 });
-  const [draft, setDraft] = useState("");
+  /** The composer's way in for a dropped file. */
+  const attachRef = useRef<((file: File) => void) | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [viewing, setViewing] = useState<{ picture: Picture; caption: string } | null>(null);
 
   const blocks = groupMessages(view.messages);
   const firstId = view.messages[0]?.id ?? "";
   const lastId = view.messages[view.messages.length - 1]?.id ?? "";
 
-  // A new room starts at the bottom with an empty box, and stops saying you're typing in the last one.
   useEffect(() => {
     atBottom.current = true;
-    setDraft("");
-    return () => setTyping(room.id, false);
   }, [room.id]);
 
   useLayoutEffect(() => {
@@ -119,14 +134,6 @@ export default function ChatConversation({ room, title, ready, syncError, onBack
     };
   }, [room.id, lastId, ready]);
 
-  // The box grows with what's written, up to a few lines.
-  useLayoutEffect(() => {
-    const input = inputRef.current;
-    if (!input) return;
-    input.style.height = "auto";
-    input.style.height = `${Math.min(input.scrollHeight, COMPOSER_MAX_PX)}px`;
-  }, [draft]);
-
   const onScroll = () => {
     const log = logRef.current;
     if (!log) return;
@@ -138,25 +145,31 @@ export default function ChatConversation({ room, title, ready, syncError, onBack
     if (log.scrollTop < NEAR_TOP_PX && view.canLoadOlder && !view.loadingOlder) void loadOlder(room.id);
   };
 
-  const send = () => {
-    if (!draft.trim()) return;
-    atBottom.current = true;
-    void sendText(room.id, draft);
-    setDraft("");
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter sends; Shift+Enter starts a new line. Not while an input method is composing a character.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      send();
-    }
-  };
+  const carriesFiles = (event: React.DragEvent) => Array.from(event.dataTransfer.types).includes("Files");
 
   const typing = typingLine(view.typing);
 
   return (
-    <section className="chat-pane" aria-label={title}>
+    <section
+      className={dragging ? "chat-pane chat-pane--dropping" : "chat-pane"}
+      aria-label={title}
+      onDragOver={(event) => {
+        if (!ready || !carriesFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        setDragging(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+      }}
+      onDrop={(event) => {
+        if (!carriesFiles(event)) return;
+        event.preventDefault();
+        setDragging(false);
+        const file = event.dataTransfer.files[0];
+        if (file) attachRef.current?.(file);
+      }}
+    >
       <header className="chat-header">
         <button type="button" onClick={onBack} className="chat-back md:hidden" aria-label="Back to your chats">
           ‹
@@ -206,7 +219,12 @@ export default function ChatConversation({ room, title, ready, syncError, onBack
                 </time>
               </p>
               {block.messages.map((message) => (
-                <Message key={message.id} message={message} roomId={room.id} />
+                <Message
+                  key={message.id}
+                  message={message}
+                  roomId={room.id}
+                  onOpen={(m) => m.picture && setViewing({ picture: m.picture, caption: m.body ?? "" })}
+                />
               ))}
             </div>
           )
@@ -217,36 +235,24 @@ export default function ChatConversation({ room, title, ready, syncError, onBack
         {typing}
       </p>
 
-      <form
-        className="chat-composer"
-        onSubmit={(event) => {
-          event.preventDefault();
-          send();
+      <ChatComposer
+        roomId={room.id}
+        title={title}
+        ready={ready}
+        gifs={gifs}
+        attachRef={attachRef}
+        onSend={() => {
+          atBottom.current = true;
         }}
-      >
-        <label htmlFor="chat-message" className="sr-only">
-          Message {title}
-        </label>
-        <textarea
-          id="chat-message"
-          ref={inputRef}
-          rows={1}
-          maxLength={MESSAGE_MAX}
-          value={draft}
-          disabled={!ready}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            setTyping(room.id, event.target.value.trim() !== "");
-          }}
-          onKeyDown={onKeyDown}
-          onBlur={() => setTyping(room.id, false)}
-          placeholder={`Message ${title}`}
-          className="chat-input"
-        />
-        <button type="submit" disabled={!ready || !draft.trim()} className="btn btn-gold !px-4 !py-2">
-          Send
-        </button>
-      </form>
+      />
+
+      {dragging && (
+        <div className="chat-drop" aria-hidden="true">
+          Drop the picture to send it
+        </div>
+      )}
+
+      {viewing && <ChatPictureViewer picture={viewing.picture} caption={viewing.caption} onClose={() => setViewing(null)} />}
     </section>
   );
 }

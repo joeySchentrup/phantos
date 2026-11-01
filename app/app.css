@@ -2190,6 +2190,206 @@
   }
   .chat-check:hover { background: rgba(242, 193, 78, 0.07); }
   .chat-check input { accent-color: var(--gold); width: 1rem; height: 1rem; }
+
+  /* Pictures in a message: their size is set from the picture, capped, before it loads. */
+  .chat-picture {
+    position: relative;
+    display: block;
+    max-width: 100%;
+    margin: 0.3rem 0 0.15rem;
+    overflow: hidden;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(242, 193, 78, 0.28);
+    background: rgba(0, 0, 0, 0.3);
+    cursor: zoom-in;
+  }
+  .chat-picture:hover { border-color: rgba(242, 193, 78, 0.6); }
+  .chat-picture__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .chat-picture__loading {
+    position: absolute;
+    inset: 0;
+  }
+  .chat-picture__failed {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+  }
+  .chat-caption { display: block; }
+
+  /* A picture at full size, over a dimmed page. The dialog fills the screen, so a click beside the picture closes it. */
+  .chat-viewer {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 1rem;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+  }
+  .chat-viewer[open] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  .chat-viewer::backdrop { background: rgba(6, 3, 1, 0.88); }
+  .chat-viewer__img {
+    max-width: 100%;
+    max-height: calc(100dvh - 7rem);
+    object-fit: contain;
+    border-radius: 0.4rem;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  }
+  .chat-viewer__note { color: var(--ink-dim); }
+  .chat-viewer__bar {
+    display: flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .chat-viewer__caption {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink-dim);
+    font-size: 0.9rem;
+  }
+
+  /* The box to write in, with the picture waiting to go and GIF search above it. */
+  .chat-composer-wrap { position: relative; }
+  .chat-tool {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(242, 193, 78, 0.3);
+    background: rgba(8, 4, 2, 0.5);
+    color: var(--gold);
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .chat-tool:not(:disabled):hover { border-color: var(--gold); color: var(--gold-hi); }
+  .chat-tool:disabled { opacity: 0.5; cursor: not-allowed; }
+  .chat-tool--gif {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 800;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+  }
+  .chat-attachment-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 1rem 0.4rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(242, 193, 78, 0.3);
+    background: rgba(0, 0, 0, 0.25);
+  }
+  .chat-attachment-preview__thumb {
+    width: 3.5rem;
+    height: 3.5rem;
+    flex: none;
+    border-radius: 0.35rem;
+    object-fit: cover;
+  }
+  .chat-composer-error {
+    margin: 0 1rem 0.4rem;
+    color: #ffcfb8;
+    font-size: 0.85rem;
+  }
+  /* Shown over the conversation while a file is dragged onto it. */
+  .chat-pane--dropping { position: relative; }
+  .chat-drop {
+    position: absolute;
+    inset: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.6rem;
+    border: 2px dashed var(--gold);
+    background: rgba(20, 10, 4, 0.82);
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--gold-hi);
+    pointer-events: none;
+  }
+
+  /* GIF search: a grid of moving previews, and GIPHY's mark, as its terms ask. */
+  .chat-gifs {
+    display: flex;
+    flex-direction: column;
+    max-height: min(24rem, 55dvh);
+    margin: 0 1rem 0.5rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(242, 193, 78, 0.35);
+    background: linear-gradient(180deg, rgba(47, 28, 16, 0.98), rgba(22, 13, 7, 0.98));
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  .chat-gifs__head {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.6rem;
+  }
+  .chat-gifs__grid {
+    flex: 1;
+    min-height: 6rem;
+    overflow-y: auto;
+    padding: 0 0.6rem;
+    columns: 3 7rem;
+    column-gap: 0.4rem;
+  }
+  .chat-gif {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.4rem;
+    overflow: hidden;
+    break-inside: avoid;
+    border-radius: 0.35rem;
+    border: 1px solid transparent;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  .chat-gif:hover,
+  .chat-gif:focus-visible { border-color: var(--gold); }
+  .chat-gif img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .chat-gifs__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 2.5rem;
+    padding: 0.4rem 0.6rem;
+    border-top: 1px solid rgba(242, 193, 78, 0.16);
+  }
+  .chat-gifs__credit {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+  }
+  .chat-gifs__mark { height: 1.1rem; width: auto; }
 }
 
 /* A sheet prints as a sheet: the site around it goes, and the parchment turns to paper. */

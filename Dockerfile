@@ -45,6 +45,9 @@ EXPOSE 8080
 # chat server, the address browsers use (PocketBase gives it to the site and
 # lets pages connect to it), its server_name, and the app service's as_token.
 # With any of them empty, chat is off.
+#
+# GIPHY_API_KEY turns on GIF search in chat (developers.giphy.com), and
+# GIPHY_RATING sets how far it goes: g, pg, pg-13 (when empty) or r.
 ENV LORE_DIR=/pb/lore \
     DM_EMAIL="" \
     DM_PASSWORD="" \
@@ -52,7 +55,9 @@ ENV LORE_DIR=/pb/lore \
     MATRIX_URL="" \
     MATRIX_PUBLIC_URL="" \
     MATRIX_SERVER_NAME="" \
-    MATRIX_AS_TOKEN=""
+    MATRIX_AS_TOKEN="" \
+    GIPHY_API_KEY="" \
+    GIPHY_RATING=""
 
 # start PocketBase
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080"]

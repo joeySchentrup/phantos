@@ -27,6 +27,11 @@ macaroon_secret_key: "REPLACE_ME_RANDOM_SECRET"
 
 media_store_path: /data/media_store
 max_upload_size: 50M
+# Each person may upload this much a day, which keeps the NAS's disk from filling.
+# The site sends photos shrunk (2048 px) and GIFs of 15 MB at most.
+media_upload_limits:
+  - time_period: 1d
+    max_size: 500M
 
 listeners:
   - port: 8008

@@ -57,6 +57,21 @@ describe("connectPolicy", () => {
     expect(hooks.connectPolicy("")).toBe("connect-src 'self'");
   });
 
+  it("lets pages reach GIPHY only when GIF search is on, and only with chat", () => {
+    expect(hooks.connectPolicy("https://matrix.example.com", true)).toBe(
+      "connect-src 'self' https://matrix.example.com https://*.giphy.com"
+    );
+    expect(hooks.connectPolicy("https://matrix.example.com", false)).toBe("connect-src 'self' https://matrix.example.com");
+    expect(hooks.connectPolicy("", true)).toBe("connect-src 'self'");
+  });
+
+  it("rates GIFs pg-13 unless told one of GIPHY's ratings", () => {
+    expect(hooks.gifRating("")).toBe("pg-13");
+    expect(hooks.gifRating(" G ")).toBe("g");
+    expect(hooks.gifRating("r")).toBe("r");
+    expect(hooks.gifRating("nc-17")).toBe("pg-13");
+  });
+
   it("never lets a strange address into the header", () => {
     expect(hooks.connectPolicy("https://a.example; script-src *")).toBe("connect-src 'self'");
     expect(hooks.connectPolicy("javascript:alert(1)")).toBe("connect-src 'self'");
@@ -217,7 +232,7 @@ describe("sortRooms", () => {
 });
 
 function message(id: string, sender: string, ts: number, body: string | null = id): ChatMessage {
-  return { id, sender, senderName: sender.toUpperCase(), body, ts, mine: sender === "me", status: "sent" };
+  return { id, sender, senderName: sender.toUpperCase(), body, picture: null, ts, mine: sender === "me", status: "sent" };
 }
 
 describe("groupMessages", () => {
@@ -303,6 +318,9 @@ describe("previewText", () => {
     expect(previewText({ body: "Hello\nthere", senderName: "Alice", mine: false })).toBe("Alice: Hello there");
     expect(previewText({ body: "Hi", senderName: "Me", mine: true })).toBe("You: Hi");
     expect(previewText({ body: null, senderName: "Alice", mine: false })).toBe("Alice: Attachment");
+    const picture = { mxc: "mxc://s/x", mimetype: "image/gif" as const, width: 1, height: 1, size: 1, filename: "a.gif" };
+    expect(previewText({ body: "", picture, senderName: "Alice", mine: false })).toBe("Alice: Picture");
+    expect(previewText({ body: "The   map", picture, senderName: "Alice", mine: false })).toBe("Alice: The map");
     expect(previewText(null)).toBe("");
   });
 });
