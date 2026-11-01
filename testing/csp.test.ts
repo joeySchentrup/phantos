@@ -47,12 +47,15 @@ describe("contentSecurityPolicy", () => {
     expect(directive(policy, "form-action")).toEqual(["'self'"]);
   });
 
-  it("lets the site talk to a PocketBase on another origin", () => {
-    expect(directive(contentSecurityPolicy([], "/"), "connect-src")).toEqual(["'self'"]);
+  it("lets the site load from a PocketBase on another origin", () => {
     const elsewhere = contentSecurityPolicy([], "http://localhost:8090/");
-    expect(directive(elsewhere, "connect-src")).toEqual(["'self'", "http://localhost:8090"]);
     expect(directive(elsewhere, "img-src")).toContain("http://localhost:8090");
     expect(directive(elsewhere, "media-src")).toEqual(["'self'", "http://localhost:8090", "blob:"]);
+  });
+
+  it("leaves connections to the header PocketBase sends (pb_hooks/phantos/chat.js)", () => {
+    expect(directive(contentSecurityPolicy([], "/"), "connect-src")).toEqual(["*"]);
+    expect(directive(contentSecurityPolicy([], "http://localhost:8090"), "connect-src")).toEqual(["*"]);
   });
 
   it("plays songs from our own origin and previews new ones as blobs, and nothing else", () => {

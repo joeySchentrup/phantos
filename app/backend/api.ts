@@ -15,6 +15,7 @@ import type { PantheonMember, PantheonRank, PantheonSummary } from '../types/pan
 import type { Song, SongEntry } from '../types/song';
 import type { Player, PlayerSignUp } from '../types/player';
 import type { CharacterSheet, SheetInput, SheetPatch } from '../types/sheet';
+import type { ChatConfig, ChatRecord, ChatSession, GroupChatInput } from '../types/chat';
 import { normalizeSheet } from '../lib/fifth/sheet';
 import pb, { POCKETBASE_URL } from './pocketbaseClient';
 
@@ -1152,6 +1153,81 @@ export async function deletePlayer(id: string): Promise<void> {
     await pb.collection(PLAYER_COLLECTION).delete(id);
   } catch (error) {
     console.error('Error removing the player:', error);
+    throw error;
+  }
+}
+
+/** The signed-in account's record ID, a player's or a DM's; "" when nobody is signed in. */
+export function signedInAccountId(): string {
+  return pb.authStore.isValid ? String(pb.authStore.record?.id ?? '') : '';
+}
+
+/** Calls `callback` whenever anyone signs in or out, or their record is refreshed. Returns an unsubscribe function. */
+export function onAccountChange(callback: () => void): () => void {
+  return pb.authStore.onChange(() => callback());
+}
+
+// ---------------------------------------------------------------------------
+// Chat (the rooms themselves are on the chat server: app/backend/chat.ts)
+// ---------------------------------------------------------------------------
+
+const CHAT_COLLECTION = 'chats';
+
+let chatConfig: Promise<ChatConfig> | null = null;
+
+/**
+ * Whether chat is on, and the chat server's address, as set in PocketBase's
+ * environment. Asked once a page load; a failure is asked again next time.
+ */
+export function getChatConfig(): Promise<ChatConfig> {
+  chatConfig ??= pb.send<ChatConfig>('/api/phantos/chat/config', { requestKey: null }).catch((error) => {
+    console.error('Error asking whether chat is on:', error);
+    chatConfig = null;
+    return { enabled: false, homeserver: '' };
+  });
+  return chatConfig;
+}
+
+/**
+ * A chat session for the signed-in approved player or DM, on this browser's
+ * device. PocketBase brings their rooms in step first, then signs them in.
+ */
+export async function getChatSession(deviceId: string): Promise<ChatSession> {
+  return await pb.send<ChatSession>('/api/phantos/chat/session', {
+    method: 'POST',
+    body: { device_id: deviceId },
+    requestKey: null,
+  });
+}
+
+/** Every chat, for DMs: which room is whose, and whether the chat server is in step. */
+export async function listChats(): Promise<ChatRecord[]> {
+  try {
+    return await pb.collection(CHAT_COLLECTION).getFullList<ChatRecord>({ sort: 'created', requestKey: null });
+  } catch (error) {
+    console.error('Error listing the chats:', error);
+    throw error;
+  }
+}
+
+/** Makes a group, or renames one and changes who's in it. The hooks make its room. */
+export async function saveGroupChat(data: GroupChatInput, id?: string): Promise<ChatRecord> {
+  try {
+    const body = { name: data.name.trim(), players: data.players };
+    return id
+      ? await pb.collection(CHAT_COLLECTION).update<ChatRecord>(id, body, { requestKey: null })
+      : await pb.collection(CHAT_COLLECTION).create<ChatRecord>({ ...body, kind: 'group' }, { requestKey: null });
+  } catch (error) {
+    console.error('Error saving the group:', error);
+    throw error;
+  }
+}
+
+export async function deleteGroupChat(id: string): Promise<void> {
+  try {
+    await pb.collection(CHAT_COLLECTION).delete(id, { requestKey: null });
+  } catch (error) {
+    console.error('Error deleting the group:', error);
     throw error;
   }
 }

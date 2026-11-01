@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import { loreFeedUrl } from "./backend/api";
+import { watchChatAccount } from "./backend/chat";
 import SiteHeader from "./components/SiteHeader";
 import { ATTRIBUTE_GLYPHS } from "./lib/lore";
 import { SECTIONS } from "./lib/sections";
@@ -83,6 +85,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Signing out of the site, on any page, signs this browser out of chat too.
+  useEffect(() => watchChatAccount(), []);
+
   return (
     <>
       <SiteHeader />

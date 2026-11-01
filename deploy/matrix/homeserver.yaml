@@ -1,0 +1,96 @@
+# Synapse's settings for Phantos: a private chat server for the table.
+#
+# Nobody signs up here. The website (PocketBase) creates an account for each approved
+# player and DM and signs them in through the app service in phantos-appservice.yaml,
+# so no one has a chat password.
+#
+# Copy this file into the synapse dataset and replace every REPLACE_ME.
+# `server_name` can never change without wiping the server, so choose it once.
+
+# The chat subdomain. Chat IDs read @name:matrix.phantos.schentrupsoftware.com.
+server_name: "matrix.phantos.schentrupsoftware.com"
+public_baseurl: "https://matrix.phantos.schentrupsoftware.com/"
+
+# The server name is the chat subdomain itself, so Synapse publishes its own discovery
+# files: /.well-known/matrix/client (where Matrix apps find the chat API) and
+# /.well-known/matrix/server (how the call service finds Synapse on port 443, not 8448).
+serve_client_wellknown: true
+serve_server_wellknown: true
+
+pid_file: /data/homeserver.pid
+report_stats: false
+
+# Synapse creates the signing key on its first start.
+signing_key_path: /data/signing.key
+# Generate with: openssl rand -hex 32
+macaroon_secret_key: "REPLACE_ME_RANDOM_SECRET"
+
+media_store_path: /data/media_store
+max_upload_size: 50M
+
+listeners:
+  - port: 8008
+    type: http
+    tls: false
+    # The proxies terminate HTTPS and pass the visitor's address along.
+    x_forwarded: true
+    resources:
+      # `client` is the chat API the website uses. `openid` is the one check the call
+      # service (lk-jwt-service, on the VM) makes to confirm who a caller is.
+      # No `federation`: nothing else on the Matrix network can reach this server.
+      - names: [client, openid]
+        compress: false
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    # The same password as POSTGRES_PASSWORD in compose.yaml.
+    password: "REPLACE_ME_POSTGRES_PASSWORD"
+    dbname: synapse
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+# Private to the table: no federation with other servers, and no fetching their keys.
+federation_domain_whitelist: []
+trusted_key_servers: []
+
+# Accounts are made by the website only.
+enable_registration: false
+app_service_config_files:
+  - /data/phantos-appservice.yaml
+
+# Profiles only show to people who share a room.
+require_auth_for_profile_requests: true
+limit_profile_requests_to_users_who_share_rooms: true
+
+# --- Video calls (Element Call) -------------------------------------------------------
+# What Element Call's self-hosting guide asks of Synapse. Harmless before calls are set up.
+
+experimental_features:
+  # MatrixRTC: the endpoint that tells clients where the call server is.
+  msc4143_enabled: true
+  # `state_after` in /sync, so calls track who's in them reliably. Built in from
+  # Synapse 1.164, which ignores this line.
+  msc4222_enabled: true
+
+# Delayed events: a member who drops off (a closed tab, a lost connection) leaves the
+# call on their own, instead of hanging on as a ghost.
+max_event_delay_duration: 24h
+
+rc_message:
+  # Calls share their keys in bursts.
+  per_second: 0.5
+  burst_count: 30
+
+rc_delayed_event_mgmt:
+  # Calls send a heartbeat every 5 seconds.
+  per_second: 1
+  burst_count: 20
+
+# Fill in once LiveKit and lk-jwt-service run on the VM (step 2), then restart Synapse.
+# matrix_rtc:
+#   transports:
+#     - type: livekit
+#       livekit_service_url: "https://REPLACE_ME_LIVEKIT_DOMAIN"

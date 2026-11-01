@@ -6,7 +6,8 @@
     "build": "react-router build",
     "dev": "react-router dev --host",
     "typecheck": "react-router typegen && tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "matrix:down": "docker compose -f deploy/matrix/local/compose.yaml down"
   },
   "dependencies": {
     "@react-router/node": "^7.18.4",
@@ -15,6 +16,7 @@
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0",
     "markdown-it-footnote": "^4.0.0",
+    "matrix-js-sdk": "44.0.0",
     "pocketbase": "^0.28.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

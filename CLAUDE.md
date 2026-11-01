@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, see what each hero holds in Electrum, and listen to the campaign's Songs with their lyrics. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory, post updates to their page, and keep the hero's private character sheet, taking each level the DM calls them to in a level-up wizard, and nothing else. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, draw up character sheets and call heroes to a level, add songs, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
+**Phantos** is the lore archive for a D&D campaign set on the world of Phanatos. Visitors browse and search the lore, follow it through time on the Chronicle, a zoomable timeline, find it on the Atlas, a chart they pan and zoom, meet the powers of the world in the Pantheon, follow the party in Heroes, see what each hero holds in Electrum, and listen to the campaign's Songs with their lyrics. Players join at `/players` and claim their hero; once a Dungeon Master approves them, they can write that hero's backstory, post updates to their page, and keep the hero's private character sheet, taking each level the DM calls them to in a level-up wizard, and nothing else. Approved players and DMs also chat on the site: each player has a channel with the DMs, and DMs make group chats. The site is a client of the table's own Matrix server (Synapse), which PocketBase keeps in step. Dungeon Masters sign in to add and edit lore, pantheon members and heroes, approve players, post updates to a hero's page, draw up character sheets and call heroes to a level, add songs, award and spend electrum and stock its shop, upload card art, choose the featured image, add eras and points to the timeline, and keep the Atlas: add places, draw realms and terrain, and drag them into place. The site is styled like a duel-monster card game: each entry is a card.
 
 ## Tech Stack
 
@@ -18,6 +18,9 @@ Mirrors Schentrup-Software/shear-madness:
 
 ```bash
 bash .devcontainer/start-pocketbase.sh  # local PocketBase on :8090 (schema + lore seed)
+bash .devcontainer/start-matrix.sh      # local chat server in Docker: Synapse :8008, Element Web :8009
+bash .devcontainer/start-local.sh       # both of the above, then npm run dev
+npm run matrix:down                     # stop the local chat server
 npm run dev        # Dev server at http://localhost:5173
 npm test           # vitest unit tests (testing/)
 npm run typecheck  # React Router typegen + tsc
@@ -33,17 +36,20 @@ app/
 │                      #   electrum (routed, but not a section in the top bar),
 │                      #   songsLayout (the player around songs and songEntry), songs, songEntry,
 │                      #   players (join and sign in; linked from the footer, like dm),
+│                      #   chat (in the top bar only for approved players and DMs),
 │                      #   dm, dmEditor, dmPantheonEditor, dmHeroEditor, dmSongEditor,
 │                      #   comingSoon (not routed; the face-down page for a section still to be built)
 ├── backend/
 │   ├── api.ts         # ALL PocketBase calls — touch this for data changes
+│   ├── chat.ts        # ALL chat server (Synapse) calls: the session, the matrix-js-sdk client, the rooms as pages see them
 │   └── pocketbaseClient.ts
 ├── components/        # CardShell, LoreCard, PantheonCard, HeroCard, HeroUpdates, BackstoryEditor, PlayersPanel,
 │                      #   PantheonPicker, PantheonPlates, Timeline,
 │                      #   ChronicleDesk, YearField, AtlasChart, AtlasKey, AtlasDesk, FeaturedVision, SiteHeader,
 │                      #   ElectrumBanner, ElectrumCoin, ElectrumLedger, ElectrumShop, LevelUpCalculator,
 │                      #   SongPlayer (the provider, the <audio> element and the player panel),
-│                      #   HeroTabs, CharacterSheet, SheetFields, LevelUpWizard, SheetBuildEditor, QueueLevelUp, LevelUpPanel, …
+│                      #   HeroTabs, CharacterSheet, SheetFields, LevelUpWizard, SheetBuildEditor, QueueLevelUp, LevelUpPanel,
+│                      #   ChatRooms, ChatConversation, ChatGroupEditor, …
 ├── lib/
 │   ├── lore.ts        # categories/attributes, levels, title + snippet helpers
 │   ├── pantheon.ts    # ranks, their order and levels, type line + epithet helpers
@@ -51,18 +57,23 @@ app/
 │   ├── songs.ts       # the play queue's rules: posting order, shuffle, next/previous; durations
 │   ├── electrum.ts    # stars from electrum, ledger totals, level up steps
 │   ├── players.ts     # whether a player writes for a hero, how heroes are offered to choose from
+│   ├── chat.ts        # room titles and order, message grouping and day dividers, links in plain text, device IDs
+│   ├── useChat.ts     # the hooks pages use chat through: useChat(), useChatRoom()
 │   ├── fifth/         # the 5e rules engine: pure and tested. All thirteen classes in full (every subclass), species,
 │                      #   feats, spell lists, the sheet's maths, and the level-up planner. See docs/fifth-edition-rules.md
 │   ├── chronicle.ts   # years ↔ axis, graduations, lane and era packing for the timeline
 │   ├── atlas.ts       # chart geometry: paths, hit-testing, name tiers, the pan/zoom maths, the DM's tools
 │   ├── markdown.ts    # markdown-it + footnotes + pandoc-style anchors + DOMPurify, with lore's own rules
 │   └── sections.ts    # top-level nav; a section that isn't `live` shows as coming soon
-└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts, song.ts, sheet.ts, fifth.ts
+└── types/             # lore.ts, pantheon.ts, chronicle.ts, hero.ts, electrum.ts, atlas.ts, player.ts, song.ts, sheet.ts, fifth.ts, chat.ts
 docs/                  # fifth-edition-rules.md: how to fill in more classes, species, feats and spells
+deploy/matrix/         # the chat server for the NAS (TrueNAS compose: Synapse + Postgres), its settings and the site's app service
+deploy/matrix/local/   # the same server for local development: made-up secrets, overrides on top of production's settings, Element Web
 pb_migrations/         # schema, lore seed (reads LORE_DIR), first DM from env, chronicle, pantheon, heroes, atlas and electrum schema + seeds, players,
-                       #   character sheets + Daymond's sheet
+                       #   character sheets + Daymond's sheet, chats
 pb_hooks/              # search and RSS feed routes, slug/word-count/summary hooks, chronicle, atlas and electrum upkeep,
-                       #   the players' guards (backstory only; a sheet's build only by a called level), first-DM bootstrap
+                       #   the players' guards (backstory only; a sheet's build only by a called level), first-DM bootstrap,
+                       #   and phantos/chat.js: the chat sync and the chat session route
 lore/                  # the original documents (seed source, copied into the image)
 csp.ts                 # the Content-Security-Policy the build writes into index.html (react-router.config.ts)
 ```
@@ -115,6 +126,9 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - `songs`: title, slug, credit, audio (an MP3, 50 MB at most), duration (whole seconds; 0 = not known), lyrics (plain text, line breaks kept), published
   - Same rules as lore: public reads published songs, DMs write and see drafts.
   - Posting order (`created`) is the play order and the songs' numbering. `duration` is measured by the DM's browser when the MP3 is chosen.
+- `chats`: kind (private, group), name (a group's, 80 characters at most), player (relation, cascade delete, unique), players (relation, multiple), room, sync_error
+  - A private channel is one approved player and every DM; a group is the players a DM chose (only the approved ones are let in) and every DM. The hooks make the private channels; DMs make, change and delete groups.
+  - `room` (the Matrix room ID) and `sync_error` (why Synapse isn't in step yet; empty when it is) are written by the sync alone, straight to the database. Only DMs read or write the collection; players see their rooms through chat.
 - `featured_images`: image, caption. DMs upload them; the newest one is the home page hero.
 - `dungeon_masters`: auth collection for DMs. There is no public sign-up (that is `players`).
 
@@ -141,6 +155,13 @@ csp.ts                 # the Content-Security-Policy the build writes into index
 - On every place, realm and feature save: trim the names, round every coordinate to a whole chart unit and clamp it to the chart. A realm with fewer than three corners is refused, as is a range or river with fewer than two points or a forest or lake with more than one; `tone` is clamped to 0–5 and `spread` to 8–80.
 - On every lore, pantheon and hero save, `syncCardArt` drops `card_art` when the image changed (or went) without a new copy coming with it.
 - On every save in any collection, `checkUploadNames` refuses an upload whose name doesn't end in `.png`, `.jpg`, `.jpeg`, `.jfif`, `.webp` or `.gif`. PocketBase checks a file's content but serves it by the name the uploader chose, so an image named `x.js` would go out as a script from our own origin. A file field for anything but images needs its extensions added there.
+- Chat (`phantos/chat.js`), when the four `MATRIX_*` settings are set (otherwise chat is off: nothing calls out, and the session route answers 404). One idempotent sync makes Synapse match PocketBase: accounts (`@player-<id>`, `@dm-<id>`) and their display names, a channel for every approved player, and each room's name, marker (`org.phantos.chat`: `{ kind, player, chat }`), power levels and members (invited as `@phantos`, then joined as themselves; removed by a kick). Revoked and deleted players are signed out of chat everywhere, and rooms whose chat is gone are emptied.
+  - It runs after a player's save or delete; a DM's create, update or delete; a chat's create (groups only), update or delete; when someone asks for a session; and every ten minutes by cron, whose first run after deploying is the backfill. A hero's new name reaches chat on the next run.
+  - It runs after the save has committed and never throws, so a failure never undoes a save: it's logged and written to the chat's `sync_error`, and the next run catches up. Each call to Synapse waits 5 seconds at most.
+  - A DM's request on `chats` can only make a group (`prepareGroupRequest`), never change a chat's kind, player or room (`keepChatFixed`), and never delete a player's channel (`refuseChannelDelete`).
+- `POST /api/phantos/chat/session` (`{ device_id }`): a chat session for the signed-in approved player or DM, made with `m.login.application_service`. It syncs their rooms first, then deletes the browser's device and logs in on it again, because logging in again with a device ID doesn't cancel that device's old token in Synapse.
+- `GET /api/phantos/chat/config`: `{ enabled, homeserver }`, whether chat is on and the chat server's address (`MATRIX_PUBLIC_URL`). Public.
+- On every page (any path but `/api/` and the admin UI's `/_/`), `setPagePolicy` sets the `connect-src` Content-Security-Policy header: `'self'`, and the chat server when chat is on.
 - `GET /api/phantos/search?q=&category=`: ranked search with snippets; drafts only for DMs.
 - `GET /api/phantos/feed.xml`: the 50 newest published lore entries as RSS 2.0, card text only; never drafts, whoever asks. Its links are absolute: `SITE_URL` when set (local dev sets it to the Vite server), else the address the request came in on, with the scheme a proxy forwards.
 
@@ -166,6 +187,7 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - Tailwind drops `app.css` component classes it can't find written out in the source, so never build a class name from pieces (`tl-cluster--${kind}`).
 - Lore, backstories and hero updates are HTML-capable markdown that DMs read while signed in, so `renderLore()` (`app/lib/markdown.ts`) keeps them to laying out their own text: no `<style>`, forms or form controls, SVG or MathML; a `style` attribute keeps only `width`, `text-align` and `vertical-align`; a class only the markdown plugins' (`footnote-*`, `language-*`); no `data-*`. Loosen those rules there, deliberately, and extend `testing/markdown.test.ts`.
 - The Content-Security-Policy is a `<meta>` the build writes into `index.html` (`csp.ts`, from `buildEnd` in `react-router.config.ts`): scripts from our origin plus the hashes of React Router's inline ones, no `<style>` elements, forms only to our origin. A new third-party origin (a font, an API) has to be added in `csp.ts`. `npm run dev` doesn't apply it; a built copy served by PocketBase does.
+  - Except `connect-src`, which the meta leaves open (`*`). PocketBase sends it as a header on every page (`setPagePolicy` in `pb_hooks/phantos/chat.js`): `'self'` plus the chat server's origin from `MATRIX_PUBLIC_URL`, so the chat server's address is set in PocketBase's environment alone, not at build time. A browser enforces both policies, so the header is what limits connections. A new origin the page fetches from goes in `connectPolicy()` there.
 - Text helpers in `app/lib/lore.ts` (`plainText`, `autoSummary`) mirror those in `pb_hooks/phantos/lib.js`. Keep them in step. The same goes for the category labels the RSS feed prints (`CATEGORY_LABELS` there, `CATEGORIES` here); `testing/feed.test.ts` checks them.
 - The hooks module is CommonJS and the package is ESM, so a test can't import it: `testing/feed.test.ts` evaluates the file instead. That works while the module touches PocketBase's globals (`$app`, `$os`) only inside its functions.
 - What a player may do is decided by the rules in `1791331200_players.js` and the hooks. `playsHero()` only decides what the site offers; it is not a permission check. Rules read `@request.auth.approved` from the database on each request, so an approval or a revoke takes hold at once; the site refreshes the player's own record once a page load (`refreshPlayer()`).
@@ -173,8 +195,13 @@ PocketBase runs each handler in an isolated runtime: handlers must `require(`${_
 - `SHEET_DAY_FIELDS` and `SHEET_DM_FIELDS` are written twice, in `pb_hooks/phantos/lib.js` (which decides) and `app/lib/fifth/fields.ts`; `testing/sheet.test.ts` keeps them in step and checks every column is in exactly one group. A new sheet column is part of the build unless it is added to the day-to-day list in both.
 - A player's edits on the sheet send only the fields they change (`saveSheet(id, { current_hp })`), and the wizard sends a whole level in one save (`applyLevelUp()`), so the hook can tell them apart. Calling a hero to a level and charging electrum for it are two requests; the panel says so when the charge fails.
 - The sheet's classes are `sheet-*` and the wizard's `wizard-*` in `app/app.css`. The only `@media print` block is the sheet's, scoped by `:has(.sheet-page)`; mark anything that shouldn't print with `no-print`.
+- Only `app/backend/chat.ts` talks to the chat server, as only `api.ts` talks to PocketBase; components use it through `app/lib/useChat.ts` and never import `matrix-js-sdk`. It loads the SDK with a dynamic `import()` when chat starts, so other pages carry only the small client (root.tsx imports it to end the chat session on signing out).
+- PocketBase decides who is in each room; Synapse follows. The rooms let only the website (`@phantos`, their creator) invite, remove or change state; DMs have power 50, players 0. Rooms are pinned to version 12, where the creator has every power and must not be listed in the power levels. A room found with no power levels was made partway (Synapse claims the address before the rest), and the sync makes it again.
+- Synapse works out no notification counts for an app service's accounts (all of ours), so unread badges are counted in the browser, from your read receipt or your own last message (`unreadCount()` in `app/backend/chat.ts`).
+- The chat server's address is `MATRIX_PUBLIC_URL` in PocketBase's environment, and only there: the session route gives it to browsers, the pages' `connect-src` header allows it, and `GET /api/phantos/chat/config` tells the site whether chat is on, which shows the Chat section (`useChatEnabled()`).
+- Chat messages are plain text with links (`linkify()` in `app/lib/chat.ts`): drawn as text and anchors, never HTML, and only `http`/`https` become links.
 - Path alias `~/*` → `./app/*`. Route components are default exports.
 
 ## Verifying Work
 
-Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), a hero's character sheet (as a guest: no tabs, and the sheet's address says it's private; as the player: a day-to-day edit, a rest, and the wizard for a level the DM called, then a build edit refused from the console; as a DM: a call to a level with and without electrum, "Edit the build", and the desk's Character sheets panel), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), `/songs` (play one and let it run into the next, shuffle, open a song's lyrics while it plays; as a DM, add a song with an MP3 and lyrics), and the DM editors at desktop and phone widths. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.
+Run `npm test`, `npm run typecheck` and `npm run build`. For UI changes, run the app against a local PocketBase and check the home page, `/lore?q=…`, an entry, the feed at `/api/phantos/feed.xml` on PocketBase's own port (its links should open entries), `/chronicle` (zoom, pan, a cluster, a hover card), `/atlas` (wheel zoom, pan, a pin's card, a realm; as a DM, each tool, a drag of a pin and of a handle, and a desk form), `/pantheon` and a member's page, `/heroes` and a hero's page (with an update posted as a DM, and its electrum banner), `/players` (join with a hero, the pending state, a DM's approval on the desk, then the hero's page as that player: edit the backstory and post an update), a hero's character sheet (as a guest: no tabs, and the sheet's address says it's private; as the player: a day-to-day edit, a rest, and the wizard for a level the DM called, then a build edit refused from the console; as a DM: a call to a level with and without electrum, "Edit the build", and the desk's Character sheets panel), `/electrum` (the calculator; as a DM, an award, a spend and a shop item), `/songs` (play one and let it run into the next, shuffle, open a song's lyrics while it plays; as a DM, add a song with an MP3 and lyrics), `/chat` with `bash .devcontainer/start-local.sh` running (a DM and a player in two browsers: messages both ways, unread badges, older messages on scroll, a group made, renamed, changed and deleted, a player approved then revoked; a guest and a pending player see no Chat section), and the DM editors at desktop and phone widths. On Windows, PocketBase doesn't reload changed hooks: run `start-pocketbase.sh` again. When a change loads something new (a script, font, image host or API), also serve the build from PocketBase (`--publicDir=build/client`) and check the browser console for Content Security Policy violations.

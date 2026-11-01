@@ -1,0 +1,24 @@
+# The website's key to the local chat server. The tokens are made up, for this machine only.
+#
+# Like production's ../phantos-appservice.yaml, except the website owns only its own
+# accounts (@player-…, @dm-…) and room addresses (#chat-…). That leaves room for the test
+# accounts start-matrix.sh creates, and for rooms they make in Element.
+
+id: phantos
+url: null
+
+# MATRIX_AS_TOKEN for a local PocketBase (start-pocketbase.sh sets it).
+as_token: "phantos-local-as-token"
+hs_token: "phantos-local-hs-token"
+
+sender_localpart: phantos
+rate_limited: false
+
+namespaces:
+  users:
+    - exclusive: true
+      regex: "@(player|dm)-.*"
+  aliases:
+    - exclusive: true
+      regex: "#chat-.*"
+  rooms: []

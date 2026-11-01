@@ -36,18 +36,46 @@ fi
 # it. Set after .env is loaded so that an empty SITE_URL there still gets it.
 export SITE_URL="${SITE_URL:-http://localhost:5173}"
 
-# Download PocketBase binary if not already present
+# The local chat server (.devcontainer/start-matrix.sh, deploy/matrix/local/), unless .env
+# names another. The token is the made-up one in phantos-appservice.local.yaml.
+export MATRIX_URL="${MATRIX_URL:-http://localhost:8008}"
+export MATRIX_PUBLIC_URL="${MATRIX_PUBLIC_URL:-http://localhost:8008}"
+export MATRIX_SERVER_NAME="${MATRIX_SERVER_NAME:-localhost:8008}"
+export MATRIX_AS_TOKEN="${MATRIX_AS_TOKEN:-phantos-local-as-token}"
+
+# Download PocketBase for this machine if it isn't here yet. On Windows (Git Bash) the
+# binary is pocketbase.exe, which Git Bash also finds by the plain name in $PB_BIN.
 if [ ! -f "$PB_BIN" ]; then
-  echo "Downloading PocketBase v${PB_VERSION}..."
-  curl -fsSL "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" -o /tmp/pb.zip
-  unzip -o /tmp/pb.zip -d "$PB_DIR" pocketbase
-  chmod +x "$PB_BIN"
-  rm /tmp/pb.zip
+  case "$(uname -s)" in
+    Linux*) PB_OS=linux ;;
+    Darwin*) PB_OS=darwin ;;
+    MINGW* | MSYS* | CYGWIN*) PB_OS=windows ;;
+    *) echo "ERROR: no PocketBase download for $(uname -s)" >&2; exit 1 ;;
+  esac
+  case "$(uname -m)" in
+    x86_64 | amd64) PB_ARCH=amd64 ;;
+    aarch64 | arm64) PB_ARCH=arm64 ;;
+    *) echo "ERROR: no PocketBase download for $(uname -m)" >&2; exit 1 ;;
+  esac
+  PB_FILE="pocketbase"
+  if [ "$PB_OS" = windows ]; then PB_FILE="pocketbase.exe"; fi
+
+  echo "Downloading PocketBase v${PB_VERSION} (${PB_OS}_${PB_ARCH})..."
+  PB_ZIP="$PB_DIR/pocketbase.zip"
+  curl -fsSL "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_${PB_OS}_${PB_ARCH}.zip" -o "$PB_ZIP"
+  unzip -o "$PB_ZIP" -d "$PB_DIR" "$PB_FILE"
+  chmod +x "$PB_DIR/$PB_FILE"
+  rm "$PB_ZIP"
   echo "PocketBase downloaded."
 fi
 
-# Stop any existing instance on port 8090
-pkill -f "pocketbase serve.*8090" 2>/dev/null || true
+# Stop any existing instance on port 8090. Git Bash on Windows has no pkill, and there
+# PocketBase doesn't reload changed hooks either, so running this again is how to.
+if command -v pkill > /dev/null 2>&1; then
+  pkill -f "pocketbase serve.*8090" 2>/dev/null || true
+else
+  taskkill //IM pocketbase.exe //F > /dev/null 2>&1 || true
+fi
 sleep 1
 
 "$PB_BIN" serve --http=0.0.0.0:8090 --dir="$PB_DATA" \

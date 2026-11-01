@@ -1,0 +1,30 @@
+# The website's key to the chat server, registered with Synapse as an app service.
+#
+# PocketBase uses `as_token` to create an account for each approved player and DM, to sign
+# them in (so nobody has a chat password), and to make and manage the rooms. It goes in
+# PocketBase's environment too, as MATRIX_AS_TOKEN.
+#
+# Copy this file into the synapse dataset beside homeserver.yaml.
+# Generate each token with: openssl rand -hex 32
+
+id: phantos
+
+# Synapse never calls the website, so the NAS never has to reach the VM.
+url: null
+
+as_token: "REPLACE_ME_AS_TOKEN"
+hs_token: "REPLACE_ME_HS_TOKEN"
+
+# The website's own account, which creates the rooms: @phantos:<server_name>.
+sender_localpart: phantos
+rate_limited: false
+
+namespaces:
+  # Every account and room address on this server belongs to the website.
+  users:
+    - exclusive: true
+      regex: "@.*"
+  aliases:
+    - exclusive: true
+      regex: "#.*"
+  rooms: []

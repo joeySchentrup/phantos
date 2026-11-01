@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
-import { SECTIONS } from "~/lib/sections";
+import { CHAT_SECTION, SECTIONS } from "~/lib/sections";
+import { useChatEnabled } from "~/lib/useChat";
 import { useDungeonMaster } from "~/lib/useDungeonMaster";
 import { usePlayer } from "~/lib/usePlayer";
 
@@ -44,6 +45,8 @@ export default function SiteHeader() {
   const isDm = useDungeonMaster();
   const player = usePlayer();
   const playedHero = player?.approved ? player.expand?.hero : undefined;
+  const chatOn = useChatEnabled(isDm || !!player?.approved);
+  const sections = chatOn ? [...SECTIONS, CHAT_SECTION] : SECTIONS;
   const [query, setQuery] = useState("");
 
   const onSearch = (event: React.FormEvent) => {
@@ -114,7 +117,7 @@ export default function SiteHeader() {
       <nav aria-label="Sections" className="mx-auto max-w-7xl px-2 sm:px-4">
         {/* Scrolls sideways on phones; the fade hints there's more. */}
         <ul className="-mb-px flex gap-1 overflow-x-auto pb-px [scrollbar-width:none] max-md:[mask-image:linear-gradient(to_right,black_82%,transparent)]">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <li key={section.path} className="shrink-0">
               <NavLink
                 to={section.path}

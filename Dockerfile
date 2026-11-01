@@ -40,10 +40,19 @@ EXPOSE 8080
 #
 # SITE_URL is the site's public address for the links in the RSS feed. Empty,
 # the feed uses the address it was asked on.
+#
+# MATRIX_* switch chat on (deploy/matrix/README.md): how PocketBase reaches the
+# chat server, the address browsers use (PocketBase gives it to the site and
+# lets pages connect to it), its server_name, and the app service's as_token.
+# With any of them empty, chat is off.
 ENV LORE_DIR=/pb/lore \
     DM_EMAIL="" \
     DM_PASSWORD="" \
-    SITE_URL=""
+    SITE_URL="" \
+    MATRIX_URL="" \
+    MATRIX_PUBLIC_URL="" \
+    MATRIX_SERVER_NAME="" \
+    MATRIX_AS_TOKEN=""
 
 # start PocketBase
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080"]

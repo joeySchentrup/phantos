@@ -1,0 +1,73 @@
+# The chat server for local development: Synapse and Postgres as in production, plus
+# Element Web, a regular Matrix app to test against. Start it with
+# `bash .devcontainer/start-matrix.sh`, which also creates the test accounts.
+#
+# Synapse reads production's settings (../homeserver.yaml) first, then
+# homeserver.local.yaml, which replaces the server name, the secrets and the database.
+# Every key and password in this folder is made up, for this machine only.
+
+name: phantos-matrix-local
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: phantos-local-db
+      POSTGRES_DB: synapse
+      # Synapse refuses a database that doesn't sort text as plain bytes (locale C).
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "synapse", "-d", "synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Synapse runs as user 991 and writes its signing key and media into /data, but a new
+  # Docker volume belongs to root. This hands it over, then exits.
+  synapse-data:
+    image: matrixdotorg/synapse:v1.163.2
+    entrypoint: ["chown", "-R", "991:991", "/data"]
+    volumes:
+      - synapse-data:/data
+
+  synapse:
+    image: matrixdotorg/synapse:v1.163.2
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      synapse-data:
+        condition: service_completed_successfully
+    # Later files override earlier ones, key by key.
+    command:
+      - run
+      - --config-path
+      - /config/homeserver.yaml
+      - --config-path
+      - /config/local/homeserver.local.yaml
+    volumes:
+      - synapse-data:/data
+      - ../homeserver.yaml:/config/homeserver.yaml:ro
+      - ./homeserver.local.yaml:/config/local/homeserver.local.yaml:ro
+      - ./phantos-appservice.local.yaml:/config/local/phantos-appservice.local.yaml:ro
+    ports:
+      - "8008:8008"
+
+  element:
+    image: vectorim/element-web:v1.12.32
+    restart: unless-stopped
+    environment:
+      # The image runs nginx as a non-root user, which can't always take port 80.
+      ELEMENT_WEB_PORT: "8080"
+    volumes:
+      - ./element-config.json:/app/config.json:ro
+    ports:
+      - "8009:8080"
+
+volumes:
+  postgres-data:
+  synapse-data:

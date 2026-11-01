@@ -6,6 +6,13 @@ import { createHash } from "node:crypto";
  * every route, so it covers the whole SPA. The API, the uploaded files and the
  * admin UI at /_/ send their own headers.
  *
+ * Where the page may connect is the exception. It includes the chat server,
+ * whose address is set when PocketBase starts (MATRIX_PUBLIC_URL), not when
+ * the site is built, so PocketBase sends `connect-src` as a header on every
+ * page (setPagePolicy in pb_hooks/phantos/chat.js). A browser enforces the
+ * header and this tag both, so this tag leaves connections open (`*`) and the
+ * header limits them.
+ *
  * Scripts come from our own origin or are the inline ones React Router writes
  * into index.html, allowed by their hashes. An upload can't pass for a script
  * from our origin: a hook refuses any file not named as an image.
@@ -49,7 +56,8 @@ export function contentSecurityPolicy(scripts: string[], api?: string): string {
     ["img-src", "'self'", pocketbase, "data:", "blob:", "https:"],
     // Songs stream from PocketBase; a new upload is previewed (and measured) as a blob.
     ["media-src", "'self'", pocketbase, "blob:"],
-    ["connect-src", "'self'", pocketbase],
+    // Open here: PocketBase's header limits connections to itself and the chat server.
+    ["connect-src", "*"],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
     ["form-action", "'self'"],

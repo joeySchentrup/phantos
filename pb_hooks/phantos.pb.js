@@ -123,6 +123,80 @@ onRecordUpdate((e) => {
 }, 'players');
 
 // ---------------------------------------------------------------------------
+// Chat: PocketBase decides who is in each room, and the chat server follows.
+// Each sync runs after the save has committed, so a failure never undoes it.
+// See ./phantos/chat.js.
+// ---------------------------------------------------------------------------
+
+onRecordAfterCreateSuccess((e) => {
+  e.next();
+  // Someone asking to join has nothing in chat until a DM approves them.
+  if (e.record.getBool('approved')) require(`${__hooks}/phantos/chat.js`).syncPlayer(e.app, e.record.id);
+}, 'players');
+
+onRecordAfterUpdateSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).syncPlayer(e.app, e.record.id);
+}, 'players');
+
+onRecordAfterDeleteSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).playerDeleted(e.app, e.record.id);
+}, 'players');
+
+// Every DM is in every room, so a DM coming or going changes them all.
+onRecordAfterCreateSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).syncAll(e.app);
+}, 'dungeon_masters');
+
+onRecordAfterUpdateSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).syncDungeonMaster(e.app, e.record.id);
+}, 'dungeon_masters');
+
+onRecordAfterDeleteSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).syncAll(e.app);
+}, 'dungeon_masters');
+
+onRecordCreateRequest((e) => {
+  require(`${__hooks}/phantos/chat.js`).prepareGroupRequest(e.record);
+  e.next();
+}, 'chats');
+
+onRecordUpdateRequest((e) => {
+  require(`${__hooks}/phantos/chat.js`).keepChatFixed(e.record);
+  e.next();
+}, 'chats');
+
+onRecordDeleteRequest((e) => {
+  require(`${__hooks}/phantos/chat.js`).refuseChannelDelete(e.record);
+  e.next();
+}, 'chats');
+
+// The sync makes the private channels and brings them in step itself; DMs make the groups.
+onRecordAfterCreateSuccess((e) => {
+  e.next();
+  if (e.record.getString('kind') === 'group') require(`${__hooks}/phantos/chat.js`).syncChatById(e.app, e.record.id);
+}, 'chats');
+
+onRecordAfterUpdateSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).syncChatById(e.app, e.record.id);
+}, 'chats');
+
+onRecordAfterDeleteSuccess((e) => {
+  e.next();
+  require(`${__hooks}/phantos/chat.js`).chatDeleted(e.app, e.record);
+}, 'chats');
+
+// Catches up whatever a failure left behind. The first run after deploying is the backfill.
+cronAdd('phantos_chat_sync', '*/10 * * * *', () => {
+  require(`${__hooks}/phantos/chat.js`).syncAll($app);
+});
+
+// ---------------------------------------------------------------------------
 // Electrum: accounts and shop items keep tidy names
 // ---------------------------------------------------------------------------
 
@@ -274,3 +348,26 @@ routerAdd('GET', '/api/phantos/feed.xml', (e) => {
   return e.string(200, xml);
 });
 
+// ---------------------------------------------------------------------------
+// Chat's address for the site: every page's connect-src header, and the
+// config route the site asks whether chat is on. Both come from
+// MATRIX_PUBLIC_URL, so the address is set only in PocketBase's environment.
+// ---------------------------------------------------------------------------
+
+routerUse((e) => {
+  require(`${__hooks}/phantos/chat.js`).setPagePolicy(e);
+  return e.next();
+});
+
+routerAdd('GET', '/api/phantos/chat/config', (e) => require(`${__hooks}/phantos/chat.js`).config(e));
+
+// ---------------------------------------------------------------------------
+// POST /api/phantos/chat/session — a chat session for an approved player or a DM
+// ---------------------------------------------------------------------------
+
+routerAdd(
+  'POST',
+  '/api/phantos/chat/session',
+  (e) => require(`${__hooks}/phantos/chat.js`).session(e),
+  $apis.requireAuth('players', 'dungeon_masters')
+);

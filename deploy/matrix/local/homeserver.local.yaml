@@ -1,0 +1,26 @@
+# Local overrides, read after production's ../homeserver.yaml. A key here replaces that
+# key there entirely (a whole block, for `database`). Everything else, from the listener
+# to the call settings, comes from production's file, so the two don't drift apart.
+#
+# Every secret here is made up. Never use them on a real server.
+
+server_name: "localhost:8008"
+public_baseurl: "http://localhost:8008/"
+
+macaroon_secret_key: "phantos-local-macaroon-secret"
+
+# Lets start-matrix.sh create the test accounts (admin, alice, bob) with passwords.
+registration_shared_secret: "phantos-local-registration-secret"
+
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: phantos-local-db
+    dbname: synapse
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+app_service_config_files:
+  - /config/local/phantos-appservice.local.yaml

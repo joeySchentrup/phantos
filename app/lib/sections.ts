@@ -46,6 +46,18 @@ export const SECTIONS: Section[] = [
   },
 ];
 
+/**
+ * Chat, which the top bar shows only to approved players and DMs, and only
+ * when PocketBase says chat is on (useChatEnabled). Not one of the SECTIONS:
+ * guests never see it, in the top bar or the footer.
+ */
+export const CHAT_SECTION: Section = {
+  path: "/chat",
+  label: "Chat",
+  live: true,
+  blurb: "Your channel with the Dungeon Masters, and the groups they've made.",
+};
+
 export function sectionFor(pathname: string): Section | undefined {
   return SECTIONS.find((s) => s.path === pathname.replace(/\/+$/, ""));
 }

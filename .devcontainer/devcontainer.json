@@ -3,9 +3,15 @@
 {
 	"name": "Node.js & TypeScript",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+	// Docker inside the container, for the local chat server (.devcontainer/start-matrix.sh).
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {}
+	},
 	"forwardPorts": [
 		5173,
-		8090
+		8090,
+		8008,
+		8009
 	],
 	"postCreateCommand": "npm install",
 	"postStartCommand": "bash .devcontainer/start-pocketbase.sh"

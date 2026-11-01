@@ -25,6 +25,8 @@ export default [
   route("/electrum", "routes/electrum.tsx"),
   // Players join and sign in here; linked from the footer, like the DM's desk.
   route("/players", "routes/players.tsx"),
+  // In the top bar only for approved players and DMs (CHAT_SECTION).
+  route("/chat", "routes/chat.tsx"),
 
   route("/dm", "routes/dm.tsx"),
   route("/dm/lore/new", "routes/dmEditor.tsx", { id: "dm-lore-new" }),

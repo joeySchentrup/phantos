@@ -43,6 +43,25 @@ The devcontainer runs the PocketBase script for you. The script:
 
 To use a different local DM login, put `DM_EMAIL` and `DM_PASSWORD` in a `.env` file (see [`.env.example`](.env.example)).
 
+### The chat server
+
+Players chat on the site through a Matrix server, Synapse ([`deploy/matrix/`](deploy/matrix/)). A local copy runs in Docker:
+
+```bash
+bash .devcontainer/start-matrix.sh   # Synapse on :8008, Element Web on :8009
+npm run matrix:down                  # stop it
+```
+
+Sign in to Element Web at http://localhost:8009 as `admin`, `alice` or `bob`, password `phantos-local`. The secrets are made up and only for local use. More in [`deploy/matrix/README.md`](deploy/matrix/README.md#running-it-locally).
+
+To start everything at once (PocketBase, the chat server, then the site):
+
+```bash
+bash .devcontainer/start-local.sh
+```
+
+On Windows, run these scripts from Git Bash. From cmd or PowerShell, `bash` opens WSL instead.
+
 ```bash
 npm test           # unit tests (vitest)
 npm run typecheck  # React Router typegen + tsc
